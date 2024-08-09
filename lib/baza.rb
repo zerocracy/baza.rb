@@ -270,11 +270,13 @@ class Baza
     body = gzip(params.fetch(:body))
     headers = params
       .fetch(:headers)
-      .merge({
-        'Content-Type' => 'application/zip',
-        'Content-Encoding' => 'gzip',
-        'Content-Length' => body.size
-      })
+      .merge(
+        {
+          'Content-Type' => 'application/zip',
+          'Content-Encoding' => 'gzip',
+          'Content-Length' => body.size
+        }
+      )
     params.merge(body:, headers:)
   end
 
