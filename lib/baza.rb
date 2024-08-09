@@ -25,7 +25,8 @@ require 'retries'
 require 'iri'
 require 'loog'
 require 'base64'
-require_relative 'baza/elapsed'
+require 'tago'
+require_relative 'baza/version'
 
 # Interface to the API of zerocracy.com.
 #
@@ -37,8 +38,6 @@ require_relative 'baza/elapsed'
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
 class Baza
-  VERSION = '0.0.0'
-
   def initialize(host, port, token, ssl: true, timeout: 30, retries: 3, loog: Loog::NULL, compression: true)
     @host = host
     @port = port
@@ -278,6 +277,17 @@ class Baza
         }
       )
     params.merge(body:, headers:)
+  end
+
+  def elapsed(loog)
+    start = Time.now
+    begin
+      yield
+    rescue UncaughtThrowError => e
+      tag = e.tag
+      throw e unless tag.is_a?(Symbol)
+      loog.info("#{tag} in #{start.ago}")
+    end
   end
 
   def gzip(data)

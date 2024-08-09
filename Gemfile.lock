@@ -10,6 +10,7 @@ PATH
       iri (> 0)
       loog (> 0)
       retries (~> 0)
+      tago (~> 0)
       typhoeus (~> 1.3)
 
 GEM

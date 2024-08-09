@@ -31,7 +31,9 @@ Gem::Specification.new do |s|
   s.license = 'MIT'
   s.summary = 'Zerocracy API Ruby Client'
   s.description =
-    'It is a Ruby client for Zerocracy API'
+    'It is a Ruby client for Zerocracy API, allowing you to check your jobs ' \
+    'statuses, upload and download binaries, lock/unlock them, manage durables, ' \
+    'and do everything else that is possible to do via the HTTP API.'
   s.authors = ['Yegor Bugayenko']
   s.email = 'yegor256@gmail.com'
   s.homepage = 'http://github.com/zerocracy/baza.rb'
@@ -46,6 +48,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'iri', '>0'
   s.add_dependency 'loog', '>0'
   s.add_dependency 'retries', '~>0'
+  s.add_dependency 'tago', '~>0'
   s.add_dependency 'typhoeus', '~>1.3'
   s.metadata['rubygems_mfa_required'] = 'true'
 end
