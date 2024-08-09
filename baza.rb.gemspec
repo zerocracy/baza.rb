@@ -44,5 +44,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'faraday-multipart', '>0'
   s.add_dependency 'faraday-retry', '>0'
   s.add_dependency 'loog', '>0'
+  s.add_dependency 'retries', '~>0'
+  s.add_dependency 'typhoeus', '~>1.3'
   s.metadata['rubygems_mfa_required'] = 'true'
 end
