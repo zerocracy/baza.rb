@@ -26,5 +26,5 @@
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
 class Baza
-  VERSION = '0.0.0'
+  VERSION = '0.0.2'
 end
