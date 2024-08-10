@@ -95,6 +95,7 @@ class Baza
         File.open(file, 'wb') do |f|
           request = Typhoeus::Request.new(
             home.append('pull').append("#{id}.fb").to_s,
+            method: :get,
             headers: headers.merge(
               'Accept' => 'application/octet-stream'
             ),
@@ -153,7 +154,7 @@ class Baza
           )
         end
       stdout = ret.body
-      throw :"The stdout of the job ##{id} has #{stdout.split("\n")} lines"
+      throw :"The stdout of the job ##{id} has #{stdout.split("\n").count} lines"
     end
     stdout
   end
@@ -193,6 +194,7 @@ class Baza
           302
         )
       end
+      throw :"Job name '#{name}' locked at #{@host}"
     end
   end
 
@@ -210,6 +212,7 @@ class Baza
           302
         )
       end
+      throw :"Job name '#{name}' unlocked at #{@host}"
     end
   end
 
@@ -253,6 +256,118 @@ class Baza
       throw :"The name \"#{name}\" #{exists ? 'exists' : "doesn't exist"} at #{@host}"
     end
     exists
+  end
+
+  # Place a single durable.
+  # @param [String] jname The name of the job on the server
+  # @param [String] file The file name
+  def durable_place(jname, file)
+    id = nil
+    elapsed(@loog) do
+      ret =
+        with_retries(max_tries: @retries) do
+          checked(
+            Typhoeus::Request.post(
+              home.append('durables').append('place').to_s,
+              body: {
+                'jname' => jname,
+                'file' => File.basename(file),
+                'zip' => File.open(file, 'r')
+              },
+              headers:,
+              connecttimeout: @timeout,
+              timeout: @timeout
+            ),
+            302
+          )
+        end
+      id = ret.headers['X-Zerocracy-DurableId'].to_i
+      throw :"Durable ##{id} placed for job \"#{jname}\" at #{@host}"
+    end
+    id
+  end
+
+  # Save a single durable from local file to server.
+  # @param [Integer] id The ID of the durable
+  # @param [String] file The file to upload
+  def durable_save(id, file)
+    elapsed(@loog) do
+      with_retries(max_tries: @retries) do
+        checked(
+          Typhoeus::Request.put(
+            home.append('durables').append(id).to_s,
+            body: File.binread(file),
+            headers:,
+            connecttimeout: @timeout,
+            timeout: @timeout
+          )
+        )
+      end
+      throw :"Durable ##{id} saved #{File.size(file)} bytes to #{@host}"
+    end
+  end
+
+  # Load a single durable from server to local file.
+  # @param [Integer] id The ID of the durable
+  # @param [String] file The file to upload
+  def durable_load(id, file)
+    elapsed(@loog) do
+      File.open(file, 'wb') do |f|
+        request = Typhoeus::Request.new(
+          home.append('durables').append(id).to_s,
+          method: :get,
+          headers: headers.merge(
+            'Accept' => 'application/octet-stream'
+          ),
+          connecttimeout: @timeout,
+          timeout: @timeout
+        )
+        request.on_body do |chunk|
+          f.write(chunk)
+        end
+        with_retries(max_tries: @retries) do
+          request.run
+        end
+        checked(request.response)
+      end
+      throw :"Durable ##{id} loaded #{File.size(file)} bytes from #{@host}"
+    end
+  end
+
+  # Lock a single durable.
+  # @param [Integer] id The ID of the durable
+  # @param [String] owner The owner of the lock
+  def durable_lock(id, owner)
+    elapsed(@loog) do
+      with_retries(max_tries: @retries) do
+        checked(
+          Typhoeus::Request.get(
+            home.append('durables').append(id).append('lock').add(owner:).to_s,
+            headers:
+          ),
+          302
+        )
+      end
+      throw :"Durable ##{id} locked at #{@host}"
+    end
+  end
+
+  # Unlock a single durable.
+  # @param [Integer] id The ID of the durable
+  # @param [String] owner The owner of the lock
+  def durable_unlock(id, owner)
+    elapsed(@loog) do
+      with_retries(max_tries: @retries) do
+        checked(
+          Typhoeus::Request.get(
+            home.append('durables').append(id).append('unlock').add(owner:).to_s,
+            headers:
+          ),
+          302
+        )
+      end
+      throw :"Durable ##{id} unlocked at #{@host}"
+    end
   end
 
   private

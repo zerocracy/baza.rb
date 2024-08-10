@@ -40,7 +40,7 @@ class TestBaza < Minitest::Test
   TOKEN = '00000000-0000-0000-0000-000000000000'
   HOST = 'api.zerocracy.com'
   PORT = 443
-  LIVE = Baza.new(HOST, PORT, TOKEN)
+  LIVE = Baza.new(HOST, PORT, TOKEN, loog: Loog::VERBOSE)
 
   def test_live_recent_check
     WebMock.enable_net_connect!
@@ -108,6 +108,33 @@ class TestBaza < Minitest::Test
     owner = 'judges teesting'
     assert(!LIVE.lock(n, owner).nil?)
     assert(!LIVE.unlock(n, owner).nil?)
+  end
+
+  def test_live_durable_lock_unlock
+    WebMock.enable_net_connect!
+    skip unless we_are_online
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'test.bin')
+      File.binwrite(file, 'hello')
+      id = LIVE.durable_place(fake_name, file)
+      owner = 'judges teesting'
+      LIVE.durable_lock(id, owner)
+      LIVE.durable_load(id, file)
+      LIVE.durable_save(id, file)
+      LIVE.durable_unlock(id, owner)
+    end
+  end
+
+  def test_durable_place
+    WebMock.disable_net_connect!
+    stub_request(:post, 'https://example.org/durables/place').to_return(
+      status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'test.bin')
+      File.binwrite(file, 'hello')
+      assert_equal(42, Baza.new('example.org', 443, '000').durable_place('simple', file))
+    end
   end
 
   def test_simple_push
