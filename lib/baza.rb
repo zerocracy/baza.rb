@@ -262,6 +262,7 @@ class Baza
   # @param [String] jname The name of the job on the server
   # @param [String] file The file name
   def durable_place(jname, file)
+    raise "File '#{file}' is absent" unless File.exist?(file)
     id = nil
     elapsed(@loog) do
       ret =
@@ -291,6 +292,7 @@ class Baza
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
   def durable_save(id, file)
+    raise "File '#{file}' is absent" unless File.exist?(file)
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
@@ -311,6 +313,7 @@ class Baza
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
   def durable_load(id, file)
+    FileUtils.mkdir_p(File.dirname(file))
     elapsed(@loog) do
       File.open(file, 'wb') do |f|
         request = Typhoeus::Request.new(
