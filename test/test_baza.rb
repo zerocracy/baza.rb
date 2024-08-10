@@ -114,10 +114,10 @@ class TestBaza < Minitest::Test
     WebMock.enable_net_connect!
     skip unless we_are_online
     Dir.mktmpdir do |dir|
-      file = File.join(dir, 'test.bin')
+      file = File.join(dir, "#{fake_name}.bin")
       File.binwrite(file, 'hello')
       id = LIVE.durable_place(fake_name, file)
-      owner = 'judges teesting'
+      owner = fake_name
       LIVE.durable_lock(id, owner)
       LIVE.durable_load(id, file)
       LIVE.durable_save(id, file)
