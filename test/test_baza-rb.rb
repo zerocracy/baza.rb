@@ -167,7 +167,7 @@ class TestBazaRb < Minitest::Test
       with_http_server(200, 'yes') do |baza|
         baza.name_exists?('simple')
       end
-    assert_equal("baza.rb #{Baza::VERSION}", req['user-agent'])
+    assert_equal("baza.rb #{BazaRb::VERSION}", req['user-agent'])
   end
 
   def test_push_with_meta

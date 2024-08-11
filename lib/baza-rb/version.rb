@@ -25,6 +25,6 @@
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
-class Baza
+class BazaRb
   VERSION = '0.0.0'
 end

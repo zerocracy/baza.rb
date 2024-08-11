@@ -20,12 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'typhoeus'
-require 'retries'
+require 'base64'
 require 'iri'
 require 'loog'
-require 'base64'
+require 'retries'
 require 'tago'
+require 'typhoeus'
 require_relative 'baza-rb/version'
 
 # Interface to the API of zerocracy.com.
@@ -377,7 +377,7 @@ class BazaRb
 
   def headers
     {
-      'User-Agent' => "baza.rb #{Baza::VERSION}",
+      'User-Agent' => "baza.rb #{BazaRb::VERSION}",
       'Connection' => 'close',
       'X-Zerocracy-Token' => @token
     }
