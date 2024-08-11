@@ -20,39 +20,28 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-require 'minitest/autorun'
-require 'webmock/minitest'
-require 'webrick'
+require 'factbase'
 require 'loog'
+require 'minitest/autorun'
+require 'net/ping'
+require 'random-port'
+require 'securerandom'
 require 'socket'
 require 'stringio'
-require 'random-port'
-require 'factbase'
-require 'securerandom'
-require 'net/ping'
-require_relative '../lib/baza'
+require 'wait_for'
+require 'webmock/minitest'
+require 'webrick'
+require_relative '../lib/baza-rb'
 
 # Test.
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
-class TestBaza < Minitest::Test
+class TestBazaRb < Minitest::Test
   TOKEN = '00000000-0000-0000-0000-000000000000'
   HOST = 'api.zerocracy.com'
   PORT = 443
-  LIVE = Baza.new(HOST, PORT, TOKEN, loog: Loog::VERBOSE)
-
-  def test_live_recent_check
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    assert(LIVE.recent('zerocracy').positive?)
-  end
-
-  def test_live_name_exists_check
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    assert(LIVE.name_exists?('zerocracy'))
-  end
+  LIVE = BazaRb.new(HOST, PORT, TOKEN, loog: Loog::VERBOSE)
 
   def test_live_push
     WebMock.enable_net_connect!
@@ -60,7 +49,18 @@ class TestBaza < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
-    assert(LIVE.push(fake_name, fb.export, []).positive?)
+    n = fake_name
+    assert(LIVE.push(n, fb.export, []).positive?)
+    assert(LIVE.name_exists?(n))
+    assert(LIVE.recent(n).positive?)
+    id = LIVE.recent(n)
+    wait_for(60) { LIVE.finished?(id) }
+    assert(!LIVE.pull(id).nil?)
+    assert(!LIVE.stdout(id).nil?)
+    assert(!LIVE.exit_code(id).nil?)
+    owner = 'baza.rb testing'
+    assert(!LIVE.lock(n, owner).nil?)
+    assert(!LIVE.unlock(n, owner).nil?)
   end
 
   def test_live_push_no_compression
@@ -69,45 +69,8 @@ class TestBaza < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
-    baza = Baza.new(HOST, PORT, TOKEN, compression: false)
+    baza = BazaRb.new(HOST, PORT, TOKEN, compression: false)
     assert(baza.push(fake_name, fb.export, []).positive?)
-  end
-
-  def test_live_pull
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    id = LIVE.recent('zerocracy')
-    assert(!LIVE.pull(id).nil?)
-  end
-
-  def test_live_check_finished
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    id = LIVE.recent('zerocracy')
-    assert(!LIVE.finished?(id).nil?)
-  end
-
-  def test_live_read_stdout
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    id = LIVE.recent('zerocracy')
-    assert(!LIVE.stdout(id).nil?)
-  end
-
-  def test_live_read_exit_code
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    id = LIVE.recent('zerocracy')
-    assert(!LIVE.exit_code(id).nil?)
-  end
-
-  def test_live_lock_unlock
-    WebMock.enable_net_connect!
-    skip unless we_are_online
-    n = fake_name
-    owner = 'judges teesting'
-    assert(!LIVE.lock(n, owner).nil?)
-    assert(!LIVE.unlock(n, owner).nil?)
   end
 
   def test_live_durable_lock_unlock
@@ -133,7 +96,7 @@ class TestBaza < Minitest::Test
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'test.bin')
       File.binwrite(file, 'hello')
-      assert_equal(42, Baza.new('example.org', 443, '000').durable_place('simple', file))
+      assert_equal(42, BazaRb.new('example.org', 443, '000').durable_place('simple', file))
     end
   end
 
@@ -144,7 +107,7 @@ class TestBaza < Minitest::Test
     )
     assert_equal(
       42,
-      Baza.new('example.org', 443, '000').push('simple', 'hello, world!', [])
+      BazaRb.new('example.org', 443, '000').push('simple', 'hello, world!', [])
     )
   end
 
@@ -155,7 +118,7 @@ class TestBaza < Minitest::Test
       .to_return(status: 200, body: '42')
     assert_equal(
       42,
-      Baza.new('example.org', 443, '000').recent('simple')
+      BazaRb.new('example.org', 443, '000').recent('simple')
     )
   end
 
@@ -165,7 +128,7 @@ class TestBaza < Minitest::Test
       status: 200, body: 'yes'
     )
     assert(
-      Baza.new('example.org', 443, '000').name_exists?('simple')
+      BazaRb.new('example.org', 443, '000').name_exists?('simple')
     )
   end
 
@@ -175,7 +138,7 @@ class TestBaza < Minitest::Test
       status: 200, body: '0'
     )
     assert(
-      Baza.new('example.org', 443, '000').exit_code(42).zero?
+      BazaRb.new('example.org', 443, '000').exit_code(42).zero?
     )
   end
 
@@ -185,7 +148,7 @@ class TestBaza < Minitest::Test
       status: 200, body: 'hello!'
     )
     assert(
-      !Baza.new('example.org', 443, '000').stdout(42).empty?
+      !BazaRb.new('example.org', 443, '000').stdout(42).empty?
     )
   end
 
@@ -195,7 +158,7 @@ class TestBaza < Minitest::Test
       status: 200, body: 'hello, world!'
     )
     assert(
-      Baza.new('example.org', 443, '000').pull(333).start_with?('hello')
+      BazaRb.new('example.org', 443, '000').pull(333).start_with?('hello')
     )
   end
 
@@ -269,7 +232,7 @@ class TestBaza < Minitest::Test
           socket.puts "HTTP/1.1 #{code} OK\r\nContent-Length: #{response.length}\r\n\r\n#{response}"
           socket.close
         end
-      yield Baza.new(host, port, '0000', **opts)
+      yield BazaRb.new(host, port, '0000', **opts)
       t.join
     end
     req

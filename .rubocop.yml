@@ -62,3 +62,5 @@ Metrics/ParameterLists:
   Enabled: false
 Layout/MultilineAssignmentLayout:
   Enabled: true
+Naming/FileName:
+  Enabled: false

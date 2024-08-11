@@ -222,6 +222,7 @@ GEM
     unicode-display_width (2.5.0)
     uri (0.13.0)
     useragent (0.16.10)
+    wait_for (0.1.1)
     webmock (3.23.1)
       addressable (>= 2.8.0)
       crack (>= 0.3.2)
@@ -252,6 +253,7 @@ DEPENDENCIES
   rubocop-rspec (= 3.0.4)
   simplecov (= 0.22.0)
   simplecov-cobertura (= 2.1.0)
+  wait_for (~> 0)
   webmock (= 3.23.1)
   yard (= 0.9.36)
 

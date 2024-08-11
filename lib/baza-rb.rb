@@ -26,7 +26,7 @@ require 'iri'
 require 'loog'
 require 'base64'
 require 'tago'
-require_relative 'baza/version'
+require_relative 'baza-rb/version'
 
 # Interface to the API of zerocracy.com.
 #
@@ -37,7 +37,7 @@ require_relative 'baza/version'
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
-class Baza
+class BazaRb
   def initialize(host, port, token, ssl: true, timeout: 30, retries: 3, loog: Loog::NULL, compression: true)
     @host = host
     @port = port
