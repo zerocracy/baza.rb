@@ -434,10 +434,11 @@ class BazaRb
       return ret
     end
     @loog.debug("#{log}\n  #{(ret.headers || {}).map { |k, v| "#{k}: #{v}" }.join("\n  ")}")
+    headers = ret.headers || {}
     msg = [
       "Invalid response code ##{ret.code} ",
       "at #{mtd} #{url}",
-      ret.headers['X-Zerocracy-Flash'] ? " (#{ret.headers['X-Zerocracy-Flash'].inspect})" : ''
+      headers['X-Zerocracy-Flash'] ? " (#{headers['X-Zerocracy-Flash'].inspect})" : ''
     ].join
     case ret.code
     when 500
@@ -446,7 +447,7 @@ class BazaRb
         'please report this to https://github.com/zerocracy/baza'
     when 503
       msg +=
-        ", most probably it's an internal error on the server (#{ret.headers['X-Zerocracy-Failure'].inspect}), " \
+        ", most probably it's an internal error on the server (#{headers['X-Zerocracy-Failure'].inspect}), " \
         'please report this to https://github.com/zerocracy/baza.rb'
     when 404
       msg +=
