@@ -273,7 +273,7 @@ class BazaRb
               body: {
                 'jname' => jname,
                 'file' => File.basename(file),
-                'zip' => File.open(file, 'r')
+                'zip' => File.open(file, 'rb')
               },
               headers:,
               connecttimeout: @timeout,
