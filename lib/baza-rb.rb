@@ -283,7 +283,7 @@ class BazaRb
           )
         end
       id = ret.headers['X-Zerocracy-DurableId'].to_i
-      throw :"Durable ##{id} placed for job \"#{jname}\" at #{@host}"
+      throw :"Durable ##{id} (#{file}) placed for job \"#{jname}\" at #{@host}"
     end
     id
   end
