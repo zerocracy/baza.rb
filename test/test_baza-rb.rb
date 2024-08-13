@@ -58,6 +58,7 @@ class TestBazaRb < Minitest::Test
     assert(!LIVE.pull(id).nil?)
     assert(!LIVE.stdout(id).nil?)
     assert(!LIVE.exit_code(id).nil?)
+    assert(!LIVE.verified(id).nil?)
     owner = 'baza.rb testing'
     assert(!LIVE.lock(n, owner).nil?)
     assert(!LIVE.unlock(n, owner).nil?)

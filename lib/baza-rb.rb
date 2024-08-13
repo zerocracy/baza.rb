@@ -180,6 +180,27 @@ class BazaRb
     code
   end
 
+  # Read and return the verification verdict of the job.
+  # @param [Integer] id The ID of the job on the server
+  # @return [String] The verdict
+  def verified(id)
+    verdict = 0
+    elapsed(@loog) do
+      ret =
+        with_retries(max_tries: @retries) do
+          checked(
+            Typhoeus::Request.get(
+              home.append('jobs').append(id).append('verified.txt').to_s,
+              headers:
+            )
+          )
+        end
+      verdict = ret.body
+      throw :"The verdict of the job ##{id} is #{verdict.inspect}"
+    end
+    verdict
+  end
+
   # Lock the name.
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
