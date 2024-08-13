@@ -55,6 +55,9 @@ class BazaRb
   # @param [Array<String>] meta List of metas, possibly empty
   # @return [Integer] Job ID on the server
   def push(name, data, meta)
+    raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "data" of the job is nil' if data.nil?
+    raise 'The "meta" of the job is nil' if meta.nil?
     id = 0
     hdrs = headers.merge(
       'Content-Type' => 'application/octet-stream',
@@ -89,6 +92,7 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [Bytes] Binary data pulled
   def pull(id)
+    raise 'The ID of the job is nil' if id.nil?
     data = 0
     elapsed(@loog) do
       Tempfile.open do |file|
@@ -121,6 +125,7 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [Boolean] TRUE if the job is already finished
   def finished?(id)
+    raise 'The ID of the job is nil' if id.nil?
     finished = false
     elapsed(@loog) do
       ret =
@@ -142,6 +147,7 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [String] The stdout, as a text
   def stdout(id)
+    raise 'The ID of the job is nil' if id.nil?
     stdout = ''
     elapsed(@loog) do
       ret =
@@ -163,6 +169,7 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [Integer] The exit code
   def exit_code(id)
+    raise 'The ID of the job is nil' if id.nil?
     code = 0
     elapsed(@loog) do
       ret =
@@ -184,6 +191,7 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [String] The verdict
   def verified(id)
+    raise 'The ID of the job is nil' if id.nil?
     verdict = 0
     elapsed(@loog) do
       ret =
@@ -205,6 +213,8 @@ class BazaRb
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def lock(name, owner)
+    raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "owner" of the lock is nil' if owner.nil?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
@@ -223,6 +233,8 @@ class BazaRb
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def unlock(name, owner)
+    raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "owner" of the lock is nil' if owner.nil?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
@@ -241,6 +253,7 @@ class BazaRb
   # @param [String] name The name of the job on the server
   # @return [Integer] The ID of the job on the server
   def recent(name)
+    raise 'The "name" of the job is nil' if name.nil?
     job = 0
     elapsed(@loog) do
       ret =
@@ -262,6 +275,7 @@ class BazaRb
   # @param [String] name The name of the job on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(name)
+    raise 'The "name" of the job is nil' if name.nil?
     exists = 0
     elapsed(@loog) do
       ret =
@@ -283,6 +297,8 @@ class BazaRb
   # @param [String] jname The name of the job on the server
   # @param [String] file The file name
   def durable_place(jname, file)
+    raise 'The "jname" of the durable is nil' if jname.nil?
+    raise 'The "file" of the durable is nil' if file.nil?
     raise "File '#{file}' is absent" unless File.exist?(file)
     id = nil
     elapsed(@loog) do
@@ -313,6 +329,8 @@ class BazaRb
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
   def durable_save(id, file)
+    raise 'The ID of the durable is nil' if id.nil?
+    raise 'The "file" of the durable is nil' if file.nil?
     raise "File '#{file}' is absent" unless File.exist?(file)
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
@@ -334,6 +352,8 @@ class BazaRb
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
   def durable_load(id, file)
+    raise 'The ID of the durable is nil' if id.nil?
+    raise 'The "file" of the durable is nil' if file.nil?
     FileUtils.mkdir_p(File.dirname(file))
     elapsed(@loog) do
       File.open(file, 'wb') do |f|
@@ -362,6 +382,8 @@ class BazaRb
   # @param [Integer] id The ID of the durable
   # @param [String] owner The owner of the lock
   def durable_lock(id, owner)
+    raise 'The ID of the durable is nil' if id.nil?
+    raise 'The "owner" of the lock is nil' if owner.nil?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
@@ -380,6 +402,8 @@ class BazaRb
   # @param [Integer] id The ID of the durable
   # @param [String] owner The owner of the lock
   def durable_unlock(id, owner)
+    raise 'The ID of the durable is nil' if id.nil?
+    raise 'The "owner" of the lock is nil' if owner.nil?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
