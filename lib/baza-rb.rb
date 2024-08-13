@@ -56,6 +56,7 @@ class BazaRb
   # @return [Integer] Job ID on the server
   def push(name, data, meta)
     raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "name" of the job may not be empty' if name.empty?
     raise 'The "data" of the job is nil' if data.nil?
     raise 'The "meta" of the job is nil' if meta.nil?
     id = 0
@@ -93,6 +94,7 @@ class BazaRb
   # @return [Bytes] Binary data pulled
   def pull(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be a positive integer' unless id.positive?
     data = 0
     elapsed(@loog) do
       Tempfile.open do |file|
@@ -126,6 +128,7 @@ class BazaRb
   # @return [Boolean] TRUE if the job is already finished
   def finished?(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be a positive integer' unless id.positive?
     finished = false
     elapsed(@loog) do
       ret =
@@ -148,6 +151,7 @@ class BazaRb
   # @return [String] The stdout, as a text
   def stdout(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be a positive integer' unless id.positive?
     stdout = ''
     elapsed(@loog) do
       ret =
@@ -170,6 +174,7 @@ class BazaRb
   # @return [Integer] The exit code
   def exit_code(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be a positive integer' unless id.positive?
     code = 0
     elapsed(@loog) do
       ret =
@@ -192,6 +197,7 @@ class BazaRb
   # @return [String] The verdict
   def verified(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be a positive integer' unless id.positive?
     verdict = 0
     elapsed(@loog) do
       ret =
@@ -214,6 +220,7 @@ class BazaRb
   # @param [String] owner The owner of the lock (any string)
   def lock(name, owner)
     raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "name" of the job may not be empty' if name.empty?
     raise 'The "owner" of the lock is nil' if owner.nil?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
@@ -234,6 +241,7 @@ class BazaRb
   # @param [String] owner The owner of the lock (any string)
   def unlock(name, owner)
     raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "name" of the job may not be empty' if name.empty?
     raise 'The "owner" of the lock is nil' if owner.nil?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
@@ -254,6 +262,7 @@ class BazaRb
   # @return [Integer] The ID of the job on the server
   def recent(name)
     raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "name" of the job may not be empty' if name.empty?
     job = 0
     elapsed(@loog) do
       ret =
@@ -276,6 +285,7 @@ class BazaRb
   # @return [Boolean] TRUE if such name exists
   def name_exists?(name)
     raise 'The "name" of the job is nil' if name.nil?
+    raise 'The "name" of the job may not be empty' if name.empty?
     exists = 0
     elapsed(@loog) do
       ret =
@@ -298,8 +308,9 @@ class BazaRb
   # @param [String] file The file name
   def durable_place(jname, file)
     raise 'The "jname" of the durable is nil' if jname.nil?
+    raise 'The "jname" of the durable may not be empty' if jname.empty?
     raise 'The "file" of the durable is nil' if file.nil?
-    raise "File '#{file}' is absent" unless File.exist?(file)
+    raise "The file '#{file}' is absent" unless File.exist?(file)
     id = nil
     elapsed(@loog) do
       ret =
@@ -330,8 +341,9 @@ class BazaRb
   # @param [String] file The file to upload
   def durable_save(id, file)
     raise 'The ID of the durable is nil' if id.nil?
+    raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "file" of the durable is nil' if file.nil?
-    raise "File '#{file}' is absent" unless File.exist?(file)
+    raise "The file '#{file}' is absent" unless File.exist?(file)
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
@@ -353,6 +365,7 @@ class BazaRb
   # @param [String] file The file to upload
   def durable_load(id, file)
     raise 'The ID of the durable is nil' if id.nil?
+    raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "file" of the durable is nil' if file.nil?
     FileUtils.mkdir_p(File.dirname(file))
     elapsed(@loog) do
@@ -383,7 +396,9 @@ class BazaRb
   # @param [String] owner The owner of the lock
   def durable_lock(id, owner)
     raise 'The ID of the durable is nil' if id.nil?
+    raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "owner" of the lock is nil' if owner.nil?
+    raise 'The "owner" of the lock may not be empty' if owner.empty?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
@@ -403,7 +418,9 @@ class BazaRb
   # @param [String] owner The owner of the lock
   def durable_unlock(id, owner)
     raise 'The ID of the durable is nil' if id.nil?
+    raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "owner" of the lock is nil' if owner.nil?
+    raise 'The "owner" of the lock may not be empty' if owner.empty?
     elapsed(@loog) do
       with_retries(max_tries: @retries) do
         checked(
