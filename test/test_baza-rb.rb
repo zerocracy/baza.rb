@@ -215,6 +215,30 @@ class TestBazaRb < Minitest::Test
     assert_equal('hello, world!', req.body)
   end
 
+  def test_with_very_short_timeout
+    WebMock.enable_net_connect!
+    host = '127.0.0.1'
+    RandomPort::Pool::SINGLETON.acquire do |port|
+      server = TCPServer.new(host, port)
+      t =
+        Thread.new do
+          socket = server.accept
+          req = WEBrick::HTTPRequest.new(WEBrick::Config::HTTP)
+          req.parse(socket)
+          req.body
+          sleep 0.1
+          socket.puts "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nabc"
+          socket.close
+        end
+      assert(
+        assert_raises do
+          BazaRb.new(host, port, '0000', ssl: false, timeout: 0.01).push('x', 'y', [])
+        end.message.include?('timed out in')
+      )
+      t.join
+    end
+  end
+
   private
 
   def with_http_server(code, response, opts = {})

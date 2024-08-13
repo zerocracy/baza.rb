@@ -65,7 +65,7 @@ GEM
     erubi (1.13.0)
     ethon (0.16.0)
       ffi (>= 1.15.0)
-    factbase (0.3.0)
+    factbase (0.4.0)
       backtrace (> 0)
       decoor (> 0)
       json (~> 2.7)
@@ -123,7 +123,7 @@ GEM
     nokogiri (1.16.7-x86_64-linux)
       racc (~> 1.4)
     others (0.0.3)
-    parallel (1.26.1)
+    parallel (1.26.2)
     parser (3.3.4.2)
       ast (~> 2.4.1)
       racc
@@ -163,7 +163,7 @@ GEM
     reline (0.5.9)
       io-console (~> 0.5)
     retries (0.0.5)
-    rexml (3.3.4)
+    rexml (3.3.5)
       strscan
     rspec-core (3.13.0)
       rspec-support (~> 3.13.0)

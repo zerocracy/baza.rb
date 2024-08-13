@@ -428,13 +428,15 @@ class BazaRb
     allowed = [allowed] unless allowed.is_a?(Array)
     mtd = (ret.request.original_options[:method] || '???').upcase
     url = ret.effective_url
-    log = "#{mtd} #{url} -> #{ret.code}"
+    raise "#{mtd} #{url} timed out in #{ret.total_time}s" if ret.return_code == :operation_timedout
+    log = "#{mtd} #{url} -> #{ret.code} (#{format('%0.2f', ret.total_time)}s)"
     if allowed.include?(ret.code)
       @loog.debug(log)
       return ret
     end
     @loog.debug("#{log}\n  #{(ret.headers || {}).map { |k, v| "#{k}: #{v}" }.join("\n  ")}")
     headers = ret.headers || {}
+    p ret
     msg = [
       "Invalid response code ##{ret.code} ",
       "at #{mtd} #{url}",
