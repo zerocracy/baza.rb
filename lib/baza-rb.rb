@@ -461,7 +461,6 @@ class BazaRb
     end
     @loog.debug("#{log}\n  #{(ret.headers || {}).map { |k, v| "#{k}: #{v}" }.join("\n  ")}")
     headers = ret.headers || {}
-    p ret
     msg = [
       "Invalid response code ##{ret.code} ",
       "at #{mtd} #{url}",
