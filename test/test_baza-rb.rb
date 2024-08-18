@@ -196,7 +196,6 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_push_compressed_content
-    skip # this test is not stable, see https://github.com/yegor256/judges/issues/105
     req =
       with_http_server(200, 'yes') do |baza|
         baza.push('simple', 'hello, world!', %w[meta1 meta2 meta3])
