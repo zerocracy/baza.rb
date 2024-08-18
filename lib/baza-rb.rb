@@ -103,8 +103,9 @@ class BazaRb
             home.append('pull').append("#{id}.fb").to_s,
             method: :get,
             headers: headers.merge(
-              'Accept' => 'application/octet-stream'
+              'Accept' => 'application/zip, application/factbase'
             ),
+            accept_encoding: 'gzip',
             connecttimeout: @timeout,
             timeout: @timeout
           )
