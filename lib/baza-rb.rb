@@ -26,6 +26,7 @@ require 'loog'
 require 'retries'
 require 'tago'
 require 'typhoeus'
+require 'fileutils'
 require_relative 'baza-rb/version'
 
 # Interface to the API of zerocracy.com.
@@ -433,6 +434,72 @@ class BazaRb
         )
       end
       throw :"Durable ##{id} unlocked at #{@host}"
+    end
+  end
+
+  # Pop job from the server.
+  # @param [String] owner Who is acting (could be any text)
+  # @param [String] zip The path to ZIP archive to take
+  # @return [Boolean] TRUE if job taken, otherwise false
+  def pop(owner, zip)
+    raise 'The "zip" of the job is nil' if zip.nil?
+    raise "The 'zip' file is absent: #{zip}" unless File.exist?(zip)
+    success = false
+    FileUtils.rm_f(zip)
+    elapsed(@loog) do
+      File.open(zip, 'wb') do |f|
+        request = Typhoeus::Request.new(
+          home.append('pop').add(owner:).to_s,
+          method: :get,
+          headers: headers.merge(
+            'Accept' => 'application/octet-stream'
+          ),
+          connecttimeout: @timeout,
+          timeout: @timeout
+        )
+        request.on_body do |chunk|
+          f.write(chunk)
+        end
+        with_retries(max_tries: @retries) do
+          request.run
+        end
+        ret = request.response
+        checked(ret, [200, 204])
+        success = ret.code == 200
+      end
+      unless success
+        FileUtils.rm_f(zip)
+        throw :"Nothing to pop at #{@host}"
+      end
+      throw :"Popped #{File.size(zip)} bytes in ZIP archive at #{@host}"
+    end
+    success
+  end
+
+  # Submit a ZIP archvie to finish a job.
+  # @param [Integer] id The ID of the job on the server
+  # @param [String] zip The path to the ZIP file with the content of the archive
+  def finish(id, zip)
+    raise 'The "id" of the job is nil' if id.nil?
+    raise 'The "id" of the job must be an integer' unless id.is_a?(Integer)
+    raise 'The "zip" of the job is nil' if zip.nil?
+    raise "The 'zip' file is absent: #{zip}" unless File.exist?(zip)
+    elapsed(@loog) do
+      with_retries(max_tries: @retries) do
+        checked(
+          Typhoeus::Request.put(
+            home.append('finish').add(id:).to_s,
+            connecttimeout: @timeout,
+            timeout: @timeout,
+            body: File.binread(zip),
+            headers: headers.merge(
+              'Content-Type' => 'application/octet-stream',
+              'Content-Length' => File.size(zip)
+            )
+          )
+        )
+      end
+      throw :"Pushed #{File.size(zip)} bytes to #{@host}, finished job ##{id}"
     end
   end
 

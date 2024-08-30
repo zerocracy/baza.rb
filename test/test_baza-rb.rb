@@ -112,6 +112,23 @@ class TestBazaRb < Minitest::Test
     )
   end
 
+  def test_simple_pop
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/pop?owner=me').to_return(status: 204)
+    Tempfile.open do |zip|
+      assert(!BazaRb.new('example.org', 443, '000').pop('me', zip.path))
+      assert(!File.exist?(zip.path))
+    end
+  end
+
+  def test_simple_finish
+    WebMock.disable_net_connect!
+    stub_request(:put, 'https://example.org/finish?id=42').to_return(status: 200)
+    Tempfile.open do |zip|
+      BazaRb.new('example.org', 443, '000').finish(42, zip.path)
+    end
+  end
+
   def test_simple_recent_check
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org/recent/simple.txt')
