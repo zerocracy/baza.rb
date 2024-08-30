@@ -21,12 +21,13 @@
 # SOFTWARE.
 
 require 'base64'
+require 'elapsed'
+require 'fileutils'
 require 'iri'
 require 'loog'
 require 'retries'
 require 'tago'
 require 'typhoeus'
-require 'fileutils'
 require_relative 'baza-rb/version'
 
 # Interface to the API of zerocracy.com.
@@ -552,17 +553,6 @@ class BazaRb
         }
       )
     params.merge(body:, headers:)
-  end
-
-  def elapsed(loog)
-    start = Time.now
-    begin
-      yield
-    rescue UncaughtThrowError => e
-      tag = e.tag
-      throw e unless tag.is_a?(Symbol)
-      loog.info("#{tag} in #{start.ago}")
-    end
   end
 
   def gzip(data)
