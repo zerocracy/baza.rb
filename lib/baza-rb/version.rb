@@ -22,6 +22,10 @@
 
 # Just a version.
 #
+# We keep this file separate from the "baza-rb.rb" in order to have an
+# ability to include it from the ".gemspec" script, without including all
+# other packages (thus failing the build).
+#
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
