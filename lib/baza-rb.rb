@@ -39,7 +39,17 @@ require_relative 'baza-rb/version'
 # Copyright:: Copyright (c) 2024 Yegor Bugayenko
 # License:: MIT
 class BazaRb
-  def initialize(host, port, token, ssl: true, timeout: 30, retries: 3, loog: Loog::NULL, compression: true)
+  # Ctor.
+  #
+  # @param [String] host Host name
+  # @param [Integer] port TCP port
+  # @param [String] token Secret token of zerocracy.com
+  # @param [Boolean] ssl Should we use SSL?
+  # @param [Float] timeout Connect timeout and session timeout, in seconds
+  # @param [Integer] retries How many times to retry on connection failure?
+  # @param [Loog] loog The logging facility
+  # @param [Boolean] compress Set to TRUE if need to use GZIP while pulling and sending
+  def initialize(host, port, token, ssl: true, timeout: 30, retries: 3, loog: Loog::NULL, compress: true)
     @host = host
     @port = port
     @ssl = ssl
@@ -47,10 +57,11 @@ class BazaRb
     @timeout = timeout
     @loog = loog
     @retries = retries
-    @compression = compression
+    @compress = compress
   end
 
   # Push factbase to the server.
+  #
   # @param [String] name The name of the job on the server
   # @param [Bytes] data The data to push to the server (binary)
   # @param [Array<String>] meta List of metas, possibly empty
@@ -80,7 +91,7 @@ class BazaRb
           checked(
             Typhoeus::Request.put(
               home.append('push').append(name).to_s,
-              @compression ? zipped(params) : params
+              @compress ? zipped(params) : params
             )
           )
         end
@@ -91,6 +102,7 @@ class BazaRb
   end
 
   # Pull factbase from the server.
+  #
   # @param [Integer] id The ID of the job on the server
   # @return [Bytes] Binary data pulled
   def pull(id)
@@ -126,6 +138,7 @@ class BazaRb
   end
 
   # The job with this ID is finished already?
+  #
   # @param [Integer] id The ID of the job on the server
   # @return [Boolean] TRUE if the job is already finished
   def finished?(id)
@@ -149,6 +162,7 @@ class BazaRb
   end
 
   # Read and return the stdout of the job.
+  #
   # @param [Integer] id The ID of the job on the server
   # @return [String] The stdout, as a text
   def stdout(id)
@@ -172,6 +186,7 @@ class BazaRb
   end
 
   # Read and return the exit code of the job.
+  #
   # @param [Integer] id The ID of the job on the server
   # @return [Integer] The exit code
   def exit_code(id)
@@ -195,6 +210,7 @@ class BazaRb
   end
 
   # Read and return the verification verdict of the job.
+  #
   # @param [Integer] id The ID of the job on the server
   # @return [String] The verdict
   def verified(id)
@@ -218,6 +234,7 @@ class BazaRb
   end
 
   # Lock the name.
+  #
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def lock(name, owner)
@@ -239,6 +256,7 @@ class BazaRb
   end
 
   # Unlock the name.
+  #
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def unlock(name, owner)
@@ -260,6 +278,7 @@ class BazaRb
   end
 
   # Get the ID of the job by the name.
+  #
   # @param [String] name The name of the job on the server
   # @return [Integer] The ID of the job on the server
   def recent(name)
@@ -283,6 +302,7 @@ class BazaRb
   end
 
   # Check whether the name of the job exists on the server.
+  #
   # @param [String] name The name of the job on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(name)
@@ -306,6 +326,7 @@ class BazaRb
   end
 
   # Place a single durable.
+  #
   # @param [String] jname The name of the job on the server
   # @param [String] file The file name
   def durable_place(jname, file)
@@ -339,6 +360,7 @@ class BazaRb
   end
 
   # Save a single durable from local file to server.
+  #
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
   def durable_save(id, file)
@@ -363,6 +385,7 @@ class BazaRb
   end
 
   # Load a single durable from server to local file.
+  #
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
   def durable_load(id, file)
@@ -394,6 +417,7 @@ class BazaRb
   end
 
   # Lock a single durable.
+  #
   # @param [Integer] id The ID of the durable
   # @param [String] owner The owner of the lock
   def durable_lock(id, owner)
@@ -416,6 +440,7 @@ class BazaRb
   end
 
   # Unlock a single durable.
+  #
   # @param [Integer] id The ID of the durable
   # @param [String] owner The owner of the lock
   def durable_unlock(id, owner)
@@ -438,6 +463,7 @@ class BazaRb
   end
 
   # Pop job from the server.
+  #
   # @param [String] owner Who is acting (could be any text)
   # @param [String] zip The path to ZIP archive to take
   # @return [Boolean] TRUE if job taken, otherwise false
@@ -477,6 +503,7 @@ class BazaRb
   end
 
   # Submit a ZIP archvie to finish a job.
+  #
   # @param [Integer] id The ID of the job on the server
   # @param [String] zip The path to the ZIP file with the content of the archive
   def finish(id, zip)

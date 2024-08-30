@@ -70,7 +70,7 @@ class TestBazaRb < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
-    baza = BazaRb.new(HOST, PORT, TOKEN, compression: false)
+    baza = BazaRb.new(HOST, PORT, TOKEN, compress: false)
     assert(baza.push(fake_name, fb.export, []).positive?)
   end
 
@@ -225,7 +225,7 @@ class TestBazaRb < Minitest::Test
 
   def test_push_compression_disabled
     req =
-      with_http_server(200, 'yes', compression: false) do |baza|
+      with_http_server(200, 'yes', compress: false) do |baza|
         baza.push('simple', 'hello, world!', %w[meta1 meta2 meta3])
       end
     assert_equal('application/octet-stream', req.content_type)
