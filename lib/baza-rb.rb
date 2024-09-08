@@ -470,7 +470,6 @@ class BazaRb
   # @return [Boolean] TRUE if job taken, otherwise false
   def pop(owner, zip)
     raise 'The "zip" of the job is nil' if zip.nil?
-    raise "The 'zip' file is absent: #{zip}" unless File.exist?(zip)
     success = false
     FileUtils.rm_f(zip)
     elapsed(@loog) do
