@@ -180,7 +180,20 @@ class TestBazaRb < Minitest::Test
     )
   end
 
+  def test_push_with_server_failure
+    WebMock.disable_net_connect!
+    stub_request(:put, 'https://example.org/push/foo')
+      .to_return(status: 503, body: 'oops', headers: { 'X-Zerocracy-Failure': 'the failure' })
+      .to_raise('why second time?')
+    e = assert_raises { BazaRb.new('example.org', 443, '000').push('foo', 'data', []) }
+    [
+      'Invalid response code #503',
+      '"the failure"'
+    ].each { |t| assert(e.message.include?(t), "Can't find '#{t}' in #{e.message.inspect}") }
+  end
+
   def test_real_http
+    WebMock.enable_net_connect!
     req =
       with_http_server(200, 'yes') do |baza|
         baza.name_exists?('simple')
@@ -189,6 +202,7 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_push_with_meta
+    WebMock.enable_net_connect!
     req =
       with_http_server(200, 'yes') do |baza|
         baza.push('simple', 'hello, world!', ['boom!', 'хей!'])
@@ -197,6 +211,7 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_push_with_big_meta
+    WebMock.enable_net_connect!
     req =
       with_http_server(200, 'yes') do |baza|
         baza.push(
@@ -213,6 +228,7 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_push_compressed_content
+    WebMock.enable_net_connect!
     req =
       with_http_server(200, 'yes') do |baza|
         baza.push('simple', 'hello, world!', %w[meta1 meta2 meta3])
@@ -224,6 +240,7 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_push_compression_disabled
+    WebMock.enable_net_connect!
     req =
       with_http_server(200, 'yes', compress: false) do |baza|
         baza.push('simple', 'hello, world!', %w[meta1 meta2 meta3])
