@@ -10,7 +10,7 @@
 [![Hits-of-Code](https://hitsofcode.com/github/zerocracy/baza.rb)](https://hitsofcode.com/view/github/zerocracy/baza.rb)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/zerocracy/baza.rb/blob/master/LICENSE.txt)
 
-It's an clinet for [Zerocracy API](https://www.zerocracy.com), in Ruby.
+It's an client for [Zerocracy API](https://www.zerocracy.com), in Ruby.
 
 ## How to contribute
 
