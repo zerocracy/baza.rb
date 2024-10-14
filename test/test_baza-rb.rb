@@ -89,6 +89,16 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_live_enter_valve
+    WebMock.enable_net_connect!
+    skip unless we_are_online
+    r = 'something'
+    n = fake_name
+    badge = fake_name
+    assert_equal(r, LIVE.enter(n, badge, 'no reason', nil) { r })
+    assert_equal(r, LIVE.enter(n, badge, 'no reason', nil) { nil })
+  end
+
   def test_durable_place
     WebMock.disable_net_connect!
     stub_request(:post, 'https://example.org/durables/place').to_return(
@@ -297,7 +307,7 @@ class TestBazaRb < Minitest::Test
   end
 
   def fake_name
-    "fake-#{SecureRandom.hex(8)}"
+    "fake#{SecureRandom.hex(8)}"
   end
 
   def we_are_online

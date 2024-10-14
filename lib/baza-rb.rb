@@ -539,6 +539,37 @@ class BazaRb
     end
   end
 
+  # Enter a valve.
+  #
+  # @param [String] name Name of the job
+  # @param [String] badge Unique badge of the valve
+  # @param [String] why The reason
+  # @param [nil|Integer] job The ID of the job
+  # @return [String] The result just calculated or retrieved
+  def enter(name, badge, why, job)
+    elapsed(@loog, intro: "Entered valve #{badge} to #{name}") do
+      with_retries(max_tries: @retries, rescue: TimedOut) do
+        ret = checked(
+          Typhoeus::Request.get(
+            home.append('valves').append('result').add(badge:).to_s,
+            headers:
+          ),
+          [200, 204]
+        )
+        return ret.body if ret.code == 200
+        r = yield
+        uri = home.append('valves').append('add')
+          .add(name:)
+          .add(badge:)
+          .add(why:)
+          .add(result: r.to_s)
+        uri = uri.add(job:) unless job.nil?
+        checked(Typhoeus::Request.post(uri.to_s, headers:), 302)
+        r
+      end
+    end
+  end
+
   private
 
   def headers
@@ -579,6 +610,11 @@ class BazaRb
       .scheme(@ssl ? 'https' : 'http')
   end
 
+  # Check the HTTP response and return it.
+  #
+  # @param [Typhoeus::Response] ret The response
+  # @param [Array<Integer>] allowed List of acceptable HTTP codes
+  # @return [Typhoeus::Response] The same response
   def checked(ret, allowed = [200])
     allowed = [allowed] unless allowed.is_a?(Array)
     mtd = (ret.request.original_options[:method] || '???').upcase
