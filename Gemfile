@@ -34,7 +34,7 @@ gem 'rubocop', '1.69.2', require: false
 gem 'rubocop-minitest', '>0', require: false
 gem 'rubocop-performance', '1.23.0', require: false
 gem 'rubocop-rake', '>0', require: false
-gem 'rubocop-rspec', '3.3.0', require: false
+gem 'rubocop-rspec', '3.5.0', require: false
 gem 'simplecov', '0.22.0', require: false
 gem 'simplecov-cobertura', '2.1.0', require: false
 gem 'wait_for', '~>0', require: false
