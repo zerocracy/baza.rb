@@ -743,7 +743,7 @@ class TestBazaRb < Minitest::Test
       file = File.join(dir, 'upload.txt')
       File.write(file, 'test content')
       attempts = 0
-      codes = [499, 500]
+      codes = [429, 500]
       stub_request(:put, 'https://example.org:443/file')
         .to_return do |_request|
           attempts += 1
