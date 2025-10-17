@@ -743,12 +743,12 @@ class TestBazaRb < Minitest::Test
       file = File.join(dir, 'upload.txt')
       File.write(file, 'test content')
       attempts = 0
-      code = 499
+      codes = [499, 500]
       stub_request(:put, 'https://example.org:443/file')
         .to_return do |_request|
           attempts += 1
           if attempts < 2
-            { status: code += 1, body: 'Internal Error!' }
+            { status: codes[attempts - 1], body: 'Internal Error!' }
           else
             { status: 200, body: 'OK' }
           end
