@@ -676,9 +676,9 @@ class BazaRb
     attempt = 0
     loop do
       ret = yield
-      if ret.code >= 500 && attempt < @retries
+      if ret.code.between?(429, 500) && attempt < @retries
         attempt += 1
-        seconds = @pause * (2**attempt)
+        seconds = 2 * @pause * attempt
         @loog.info("Server seems to be in trouble, will sleep for #{seconds} (attempt no.#{attempt})...")
         sleep(seconds)
         next

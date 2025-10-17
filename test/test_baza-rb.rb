@@ -743,19 +743,19 @@ class TestBazaRb < Minitest::Test
       file = File.join(dir, 'upload.txt')
       File.write(file, 'test content')
       attempts = 0
-      code = 429
+      code = 499
       stub_request(:put, 'https://example.org:443/file')
         .to_return do |_request|
           attempts += 1
           if attempts < 2
-            { status: code += 1, body: 'Too Many Requests' }
+            { status: code += 1, body: 'Internal Error!' }
           else
             { status: 200, body: 'OK' }
           end
         end
       baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
       baza.send(:upload, baza.send(:home).append('file'), file)
-      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429, 430 retries')
+      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 499, 500 retries')
     end
   end
 
