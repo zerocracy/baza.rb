@@ -649,11 +649,11 @@ class BazaRb
     with_retries(max_tries: @retries, rescue: TimedOut, &)
   end
 
-  # @todo #122:30min All `retry_with_**` methods can be replaced.
-  #  If we want to handle bulk of cases when some error code is ocurred,
-  #  now wee need to add separate method instead of using some _generic_
-  #  solution. I suggest add method like `retry_on(arrange, message, attempts)`.
-  #  Usage will look like `retry_on(400..429, "My errror message", 3)`.
+  # @todo #122:30min Replace all `retry_with_**` methods.
+  #  Currently, if we want to handle a range of error codes, we have to add a
+  #  separate method for each case instead of using a generic solution.
+  #  I suggest adding a method like `retry_on(range, message, attempts)`.
+  #  Example usage: `retry_on(400..429, "My error message", 3)`.
   #
   # Execute a block with retries on 429 status codes.
   #
