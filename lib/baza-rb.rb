@@ -898,12 +898,10 @@ class BazaRb
           retry_it do
             checked(
               retry_if_server_failed do
-                retry_if_server_busy do
-                  Typhoeus::Request.put(
-                    uri.to_s,
-                    params
-                  )
-                end
+                Typhoeus::Request.put(
+                  uri.to_s,
+                  params
+                )
               end
             )
           end

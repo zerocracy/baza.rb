@@ -737,6 +737,28 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_upload_retries_on_failing_server
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'upload.txt')
+      File.write(file, 'test content')
+      attempts = 0
+      code = 429
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |_request|
+          attempts += 1
+          if attempts < 2
+            { status: code += 1, body: 'Too Many Requests' }
+          else
+            { status: 200, body: 'OK' }
+          end
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+      baza.send(:upload, baza.send(:home).append('file'), file)
+      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries')
+    end
+  end
+
   def test_durable_load_from_sinatra
     WebMock.enable_net_connect!
     Dir.mktmpdir do |dir|
