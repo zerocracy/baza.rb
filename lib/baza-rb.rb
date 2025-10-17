@@ -668,6 +668,25 @@ class BazaRb
     end
   end
 
+  # Execute a block with retries on 499 status codes.
+  #
+  # @yield The block to execute with retries
+  # @return [Object] The result of the block execution
+  def retry_if_connection_closed(&)
+    attempt = 0
+    loop do
+      ret = yield
+      if ret.code == 499 && attempt < @retries
+        attempt += 1
+        seconds = @pause * (2**attempt)
+        @loog.info("Connection seems to be closed, will sleep for #{seconds} (attempt no.#{attempt})...")
+        sleep(seconds)
+        next
+      end
+      return ret
+    end
+  end
+
   # Execute a block with retries on 500 status codes.
   #
   # @yield The block to execute with retries
@@ -676,9 +695,9 @@ class BazaRb
     attempt = 0
     loop do
       ret = yield
-      if (ret.code == 429 || ret.code >= 500) && attempt < @retries
+      if ret.code >= 500 && attempt < @retries
         attempt += 1
-        seconds = 2 * @pause * attempt
+        seconds = @pause * (2**attempt)
         @loog.info("Server seems to be in trouble, will sleep for #{seconds} (attempt no.#{attempt})...")
         sleep(seconds)
         next
@@ -897,11 +916,15 @@ class BazaRb
         ret =
           retry_it do
             checked(
-              retry_if_server_failed do
-                Typhoeus::Request.put(
-                  uri.to_s,
-                  params
-                )
+              retry_if_server_busy do
+                retry_if_connection_closed do
+                  retry_if_server_failed do
+                    Typhoeus::Request.put(
+                      uri.to_s,
+                      params
+                    )
+                  end
+                end
               end
             )
           end

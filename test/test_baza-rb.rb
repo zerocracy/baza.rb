@@ -737,18 +737,17 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_upload_retries_on_failing_server
+  def test_upload_retries_on_closed_connection
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'upload.txt')
       File.write(file, 'test content')
       attempts = 0
-      codes = [429, 500]
       stub_request(:put, 'https://example.org:443/file')
         .to_return do |_request|
           attempts += 1
           if attempts < 2
-            { status: codes[attempts - 1], body: 'Internal Error!' }
+            { status: 499, body: 'Internal Error!' }
           else
             { status: 200, body: 'OK' }
           end
