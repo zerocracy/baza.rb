@@ -755,7 +755,7 @@ class TestBazaRb < Minitest::Test
         end
       baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
       baza.send(:upload, baza.send(:home).append('file'), file)
-      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries')
+      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429, 430 retries')
     end
   end
 
