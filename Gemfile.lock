@@ -108,7 +108,7 @@ GEM
     public_suffix (6.0.2)
     puma (7.1.0)
       nio4r (~> 2.0)
-    qbash (0.4.5)
+    qbash (0.4.8)
       backtrace (> 0)
       elapsed (> 0)
       loog (> 0)
