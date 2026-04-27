@@ -882,6 +882,7 @@ class BazaRb
     total = File.size(file)
     chunk = 0
     sent = 0
+    restarts = 0
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice =
@@ -897,19 +898,30 @@ class BazaRb
         params[:body] = slice
         params[:headers]['Content-Length'] = slice.bytesize.to_s
         params = zipped(params) if @compress
-        ret =
-          retry_it do
-            checked(
-              retry_if_server_failed do
-                retry_if_server_busy do
-                  Typhoeus::Request.put(
-                    uri.to_s,
-                    params
-                  )
+        begin
+          ret =
+            retry_it do
+              checked(
+                retry_if_server_failed do
+                  retry_if_server_busy do
+                    Typhoeus::Request.put(
+                      uri.to_s,
+                      params
+                    )
+                  end
                 end
-              end
-            )
+              )
+            end
+        rescue BazaRb::ServerFailure => e
+          if e.message.include?('Expecting chunk') && chunk.positive? && restarts < 3
+            @loog.warn("Server lost upload state at chunk ##{chunk}, restarting from #0")
+            restarts += 1
+            chunk = 0
+            sent = 0
+            next
           end
+          raise
+        end
         uri = stick_host(ret, uri)
         sent += params[:body].bytesize
         @loog.debug(
