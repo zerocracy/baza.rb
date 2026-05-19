@@ -62,7 +62,7 @@ class BazaRb
   # @param [String] token Your Zerocracy API authentication token
   # @param [Boolean] ssl Whether to use SSL/HTTPS (default: true)
   # @param [Float] timeout Connection and request timeout in seconds (default: 30)
-  # @param [Integer] retries Number of retries on connection failure (default: 3)
+  # @param [Integer] retries Number of retries on connection failure (default: 5)
   # @param [Integer] pause The factor on pause (<1 means faster, >1 means slower)
   # @param [Loog] loog The logging facility (default: Loog::NULL)
   # @param [Boolean] compress Whether to use GZIP compression for requests/responses (default: true)
