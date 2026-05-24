@@ -452,6 +452,38 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal('The "owner" of the lock may not be empty', error.message)
   end
 
+  def test_enter_raises_when_pname_is_nil
+    assert_enter_rejects(nil, 'badge', 'why', nil, 'The "pname" is nil')
+  end
+
+  def test_enter_raises_when_pname_is_empty
+    assert_enter_rejects('', 'badge', 'why', nil, 'The "pname" may not be empty')
+  end
+
+  def test_enter_raises_when_badge_is_nil
+    assert_enter_rejects('pname', nil, 'why', nil, 'The "badge" is nil')
+  end
+
+  def test_enter_raises_when_badge_is_empty
+    assert_enter_rejects('pname', '', 'why', nil, 'The "badge" may not be empty')
+  end
+
+  def test_enter_raises_when_why_is_nil
+    assert_enter_rejects('pname', 'badge', nil, nil, 'The "why" is nil')
+  end
+
+  def test_enter_raises_when_why_is_empty
+    assert_enter_rejects('pname', 'badge', '', nil, 'The "why" may not be empty')
+  end
+
+  def test_enter_raises_when_job_is_not_integer
+    assert_enter_rejects('pname', 'badge', 'why', 'job', 'The "job" must be Integer')
+  end
+
+  def test_enter_raises_when_job_is_not_positive
+    assert_enter_rejects('pname', 'badge', 'why', 0, 'The "job" must be a positive integer')
+  end
+
   def test_upload_switches_host_mid_chunks
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
@@ -486,6 +518,22 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   private
+
+  def assert_enter_rejects(pname, badge, why, job, message)
+    ran = false
+    error =
+      assert_raises(RuntimeError) do
+        fake_baza.enter(pname, badge, why, job) do
+          ran = true
+          'result'
+        end
+      end
+    assert_equal(message, error.message)
+    refute(
+      ran,
+      'Invalid enter arguments must be rejected before the block is executed'
+    )
+  end
 
   def with_sinatra_server
     Dir.mktmpdir do |dir|

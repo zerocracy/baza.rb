@@ -504,6 +504,14 @@ class BazaRb
   # @return [String] The cached result or newly computed result from the block
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
+    raise 'The "pname" is nil' if pname.nil?
+    raise 'The "pname" may not be empty' if pname.empty?
+    raise 'The "badge" is nil' if badge.nil?
+    raise 'The "badge" may not be empty' if badge.empty?
+    raise 'The "why" is nil' if why.nil?
+    raise 'The "why" may not be empty' if why.empty?
+    raise 'The "job" must be Integer' unless job.nil? || job.is_a?(Integer)
+    raise 'The "job" must be a positive integer' unless job.nil? || job.positive?
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
       retry_it do
         ret = get(home.append('result').add(badge:), [200, 204])
