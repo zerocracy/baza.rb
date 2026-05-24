@@ -126,11 +126,12 @@ class BazaRb::Fake
   # Find a single durable.
   #
   # @param [String] pname The name of the job on the server
-  # @param [String] file The path to the file to upload
+  # @param [String] file The file name
   # @return [Integer] Always returns 42 as the fake durable ID
   def durable_find(pname, file)
     assert_name(pname)
-    assert_file(file)
+    raise 'The "file" is nil' if file.nil?
+    raise 'The "file" may not be empty' if file.empty?
     42
   end
 

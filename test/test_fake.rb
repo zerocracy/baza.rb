@@ -88,6 +88,16 @@ class TestFake < Minitest::Test
     end
   end
 
+  def test_durable_find_accepts_file_name
+    baza = BazaRb::Fake.new
+    assert_equal(42, baza.durable_find('test-job', 'missing.txt'))
+  end
+
+  def test_durable_find_rejects_empty_file_name
+    baza = BazaRb::Fake.new
+    assert_raises(StandardError) { baza.durable_find('test-job', '') }
+  end
+
   def test_transfer
     baza = BazaRb::Fake.new
     receipt_id = baza.transfer('recipient', 1.0, 'test-payment')
