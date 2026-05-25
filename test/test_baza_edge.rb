@@ -339,6 +339,28 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries on POST')
   end
 
+  def test_enter_does_not_recompute_when_valve_post_outer_retry_succeeds
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/result')
+      .with(query: { 'badge' => 'bar' })
+      .to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/valves')
+      .to_timeout.then
+      .to_timeout.then
+      .to_return(status: 302)
+    calls = 0
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+    result =
+      baza.enter('pact9', 'bar', 'no reason', nil) do
+        calls += 1
+        "after-#{calls}"
+      end
+    assert_equal('after-1', result)
+    assert_equal(1, calls, 'enter must not rerun the user block while retrying valve storage')
+    assert_requested(:post, 'https://example.org:443/valves', times: 3)
+  end
+
   # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and
