@@ -38,6 +38,7 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake job ID
   def push(name, data, meta, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
     checkname(name)
+    raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The data must be non-empty') if data.empty?
     raise(RuntimeError, 'The meta must be an array') unless meta.is_a?(Array)
     42
