@@ -36,4 +36,4 @@ gem 'sinatra', '~>4.1', require: false
 gem 'wait_for', '~>0.1', require: false
 gem 'webmock', '~>3.24', require: false
 gem 'webrick', '~>1.9', require: false
-gem 'yard', '0.9.43', require: false
+gem 'yard', '0.9.44', require: false
