@@ -821,7 +821,7 @@ class BazaRb
         end
         @loog.debug(msg.compact.join(', '))
         break if ret.code == 200
-        _, v = ret.headers['Content-Range'].split
+        _, v = ret.headers['Content-Range'].split(' ', 2)
         range, total = v.split('/')
         raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
