@@ -826,7 +826,7 @@ class BazaRb
         raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
         raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/^[0-9]+$/)
+        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
