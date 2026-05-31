@@ -15,7 +15,7 @@ gem 'minitest-reporters', '~>1.7', require: false
 gem 'nio4r', '2.7.5', require: false
 gem 'online', '~>0.1', require: false
 gem 'os', '~>1.1', require: false
-gem 'pact', '~>1.65', require: false
+gem 'pact', '~>2.0', require: false
 gem 'pact-ffi', '0.4.28.0', require: false
 gem 'psych', '5.3.1', require: false
 gem 'puma', '~>7.0', require: false
