@@ -84,6 +84,15 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_push_rejects_non_array_meta
+    assert_includes(
+      assert_raises(RuntimeError) do
+        fake_baza.push('simple', 'hello, world!', 'boom!')
+      end.message,
+      'The "meta" of the job must be an Array'
+    )
+  end
+
   def test_push_compressed_content
     WebMock.enable_net_connect!
     fb = Factbase.new
@@ -163,6 +172,36 @@ class TestBazaRbEdge < Minitest::Test
         assert_raises(RuntimeError) do
           fake_baza.durable_load(42, file)
         end.message, 'Range is not valid ("0")'
+      )
+    end
+  end
+
+  def test_durable_load_rejects_missing_content_range
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.txt')
+      stub_request(:get, 'https://example.org:443/durables/42')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x')
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.durable_load(42, file)
+        end.message, 'Content-Range header is missing'
+      )
+    end
+  end
+
+  def test_durable_load_rejects_range_without_total
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.txt')
+      stub_request(:get, 'https://example.org:443/durables/42')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0-499' })
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.durable_load(42, file)
+        end.message, 'Content-Range is not valid ("bytes 0-499")'
       )
     end
   end
@@ -537,12 +576,41 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_push_raises_when_data_is_empty
+    assert_equal(
+      'The "data" of the job may not be empty',
+      assert_raises(RuntimeError) { fake_baza.push('pname', '', []) }.message
+    )
+  end
+
   def test_transfer_raises_when_amount_is_not_positive
     [0.0, -1.0, -0.000001].each do |amount|
       assert_equal(
         'The "amount" must be positive',
         assert_raises(RuntimeError) { fake_baza.transfer('jeff', amount, 'pay') }.message
       )
+    end
+  end
+
+  def test_transfer_raises_when_recipient_is_invalid
+    ['', "jeff\nbad", 'jeff@example.com'].each do |recipient|
+      assert_equal(
+        "The recipient #{recipient.inspect} is not valid",
+        assert_raises(RuntimeError) { fake_baza.transfer(recipient, 1.0, 'pay') }.message
+      )
+    end
+  end
+
+  def test_transfer_raises_when_summary_is_empty
+    assert_equal(
+      'The summary "" is empty',
+      assert_raises(RuntimeError) { fake_baza.transfer('jeff', 1.0, '') }.message
+    )
+  end
+
+  def test_transfer_raises_when_job_is_invalid
+    [['1', 'The ID must be an Integer'], [0, 'The ID must be positive']].each do |job, message|
+      assert_equal(message, assert_raises(RuntimeError) { fake_baza.transfer('jeff', 1.0, 'pay', job:) }.message)
     end
   end
 

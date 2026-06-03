@@ -38,6 +38,7 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake job ID
   def push(name, data, meta, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
     checkname(name)
+    raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The data must be non-empty') if data.empty?
     raise(RuntimeError, 'The meta must be an array') unless meta.is_a?(Array)
     42
@@ -127,11 +128,12 @@ class BazaRb::Fake
   # Find a single durable.
   #
   # @param [String] pname The name of the job on the server
-  # @param [String] file The path to the file to upload
+  # @param [String] file The file name
   # @return [Integer] Always returns 42 as the fake durable ID
   def durable_find(pname, file)
     checkname(pname)
-    checkfile(file)
+    raise(RuntimeError, 'The "file" is nil') if file.nil?
+    raise(RuntimeError, 'The "file" may not be empty') if file.empty?
     42
   end
 

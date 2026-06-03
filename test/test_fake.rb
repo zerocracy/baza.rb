@@ -32,6 +32,13 @@ class TestFake < Minitest::Test
     assert_equal(42, BazaRb::Fake.new.push('test-job', 'test-data', [], chunk_size: 1024))
   end
 
+  def test_push_raises_when_data_is_nil
+    assert_equal(
+      'The "data" of the job is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.push('test-job', nil, []) }.message
+    )
+  end
+
   def test_finished
     assert(BazaRb::Fake.new.finished?(42))
   end
@@ -103,6 +110,24 @@ class TestFake < Minitest::Test
       refute_path_exists(target)
       baza.durable_load(42, target)
     end
+  end
+
+  def test_durable_find_accepts_nonexistent_file_name
+    assert_equal(42, BazaRb::Fake.new.durable_find('test-job', 'remote.bin'))
+  end
+
+  def test_durable_find_rejects_nil_file_name
+    assert_equal(
+      'The "file" is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_find('test-job', nil) }.message
+    )
+  end
+
+  def test_durable_find_rejects_empty_file_name
+    assert_equal(
+      'The "file" may not be empty',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_find('test-job', '') }.message
+    )
   end
 
   def test_durable_load_raises_when_file_is_nil

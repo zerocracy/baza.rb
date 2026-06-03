@@ -55,7 +55,7 @@ class BazaRb
   # @param [String] token Your Zerocracy API authentication token
   # @param [Boolean] ssl Whether to use SSL/HTTPS (default: true)
   # @param [Float] timeout Connection and request timeout in seconds (default: 30)
-  # @param [Integer] retries Number of retries on connection failure (default: 3)
+  # @param [Integer] retries Number of retries on connection failure (default: 5)
   # @param [Integer] pause The factor on pause (<1 means faster, >1 means slower)
   # @param [Loog] loog The logging facility (default: Loog::NULL)
   # @param [Boolean] compress Whether to use GZIP compression for requests/responses (default: true)
@@ -108,7 +108,9 @@ class BazaRb
     raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
+    raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
+    raise(RuntimeError, 'The "meta" of the job must be an Array') unless meta.is_a?(Array)
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         File.binwrite(file.path, data)
@@ -419,10 +421,16 @@ class BazaRb
   # @raise [ServerFailure] If the transfer fails
   def transfer(recipient, amount, summary, job: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
+    raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    unless job.nil?
+      raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
+      raise(RuntimeError, 'The ID must be positive') unless job.positive?
+    end
     id = nil
     body = { 'human' => recipient, 'amount' => format('%0.6f', amount), 'summary' => summary }
     body['job'] = job unless job.nil?
@@ -796,18 +804,19 @@ class BazaRb
               [200, 206, 204, 302]
             )
           end
+        rheaders = ret.headers || {}
         msg = [
           "GET #{uri.to_uri.path} #{ret.code}",
           "#{slice.bytesize} bytes",
-          ('in gzip' if ret.headers['Content-Encoding'] == 'gzip'),
-          ("ranged as #{ret.headers['Content-Range'].inspect}" if ret.headers['Content-Range'])
+          ('in gzip' if rheaders['Content-Encoding'] == 'gzip'),
+          ("ranged as #{rheaders['Content-Range'].inspect}" if rheaders['Content-Range'])
         ]
         uri = rehost(ret, uri)
         if blanks.include?(ret.code)
           sleep(2)
           next
         end
-        if ret.headers['Content-Encoding'] == 'gzip'
+        if rheaders['Content-Encoding'] == 'gzip'
           begin
             slice = unzip(slice)
             msg << "unzipped to #{slice.bytesize} bytes"
@@ -821,8 +830,7 @@ class BazaRb
         end
         @loog.debug(msg.compact.join(', '))
         break if ret.code == 200
-        _, v = ret.headers['Content-Range'].split(' ', 2)
-        range, total = v.split('/')
+        range, total = crange(rheaders)
         raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
         raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
@@ -830,10 +838,20 @@ class BazaRb
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
-        sleep(1) if ret.headers['Content-Length'].to_i.zero?
+        sleep(1) if rheaders['Content-Length'].to_i.zero?
       end
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
+  end
+
+  def crange(headers)
+    crange = headers['Content-Range']
+    raise(RuntimeError, 'Content-Range header is missing') if crange.nil?
+    _, value = crange.split(' ', 2)
+    raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if value.nil?
+    range, total = value.split('/', 2)
+    raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if total.nil?
+    [range, total]
   end
 
   # Upload file via PUT, using chunked uploads for large files.
