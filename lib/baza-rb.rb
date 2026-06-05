@@ -69,6 +69,8 @@ class BazaRb
     @retries = retries
     @pause = pause
     @compress = compress
+    @tokn = nil
+    @exp = Time.now - 1
   end
 
   # Get GitHub login name of the logged in user.
@@ -508,12 +510,16 @@ class BazaRb
   # @return [String] The CSRF token for the authenticated user
   # @raise [ServerFailure] If token retrieval fails
   def csrf
-    token = nil
-    elapsed(@loog, level: Logger::INFO) do
-      token = get(home.append('csrf')).body
-      throw(:"CSRF token retrieved (#{token.length} chars)")
+    if @tokn.nil? || @exp < Time.now
+      token = nil
+      elapsed(@loog, level: Logger::INFO) do
+        token = get(home.append('csrf')).body
+        throw(:"CSRF token retrieved (#{token.length} chars)")
+      end
+      @tokn = token
+      @exp = Time.now + 600
     end
-    token
+    @tokn
   end
 
   private
