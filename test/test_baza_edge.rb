@@ -49,6 +49,28 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_durable_place_closes_zip
+    WebMock.disable_net_connect!
+    baza = fake_baza(compress: false)
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/durable-place').to_return(
+      status: 302, headers: { 'X-Zerocracy-DurableId' => '7' }
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'tiny.bin')
+      File.binwrite(file, 'x')
+      assert_equal(7, baza.durable_place('simple', file))
+      leaked =
+        ObjectSpace.each_object(File).select do |f|
+          next false if f.closed?
+          f.path == file
+        rescue IOError
+          false
+        end
+      assert_empty(leaked, "durable_place left #{leaked.size} open IO(s) for #{file}")
+    end
+  end
+
   def test_real_http
     WebMock.enable_net_connect!
     assert_equal(
