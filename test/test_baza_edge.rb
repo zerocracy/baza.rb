@@ -391,6 +391,19 @@ class TestBazaRbEdge < Minitest::Test
     BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false).push('test', 'data', [])
   end
 
+  def test_download_sends_well_formed_accept_header
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Accept' => '*/*' })
+        .to_return(status: 200, body: 'success content', headers: {})
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      assert_equal('success content', File.read(file))
+    end
+  end
+
   def test_download_retries_on_busy_server
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
