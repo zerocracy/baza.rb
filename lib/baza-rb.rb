@@ -36,6 +36,12 @@ require_relative 'baza-rb/version'
 class BazaRb
   DEFAULT_CHUNK_SIZE = 1_000_000
 
+  # How long a fetched CSRF token stays valid for reuse, in seconds. The
+  # server rotates the token roughly every 30 minutes, so caching it for a
+  # few minutes removes the extra round-trip on every POST while staying
+  # well inside that window.
+  CSRF_TTL = 300
+
   include Compress
 
   # When the server failed (503).
@@ -74,6 +80,9 @@ class BazaRb
     @pause = pause
     @compress = compress
     @mutex = Mutex.new
+    @csrf_mutex = Mutex.new
+    @csrf = nil
+    @csrf_at = nil
   end
 
   # Get GitHub login name of the logged in user.
@@ -536,15 +545,19 @@ class BazaRb
   # The CSRF token is required for POST requests to prevent cross-site
   # request forgery attacks.
   #
-  # @return [String] The CSRF token for the authenticated user
+  # @return [String] The CSRF token for the authenticated user (cached for {CSRF_TTL} seconds)
   # @raise [ServerFailure] If token retrieval fails
   def csrf
-    token = nil
-    elapsed(@loog, level: Logger::INFO) do
-      token = get(home.append('csrf')).body
-      throw(:"CSRF token retrieved (#{token.length} chars)")
+    @csrf_mutex.synchronize do
+      if @csrf.nil? || Time.now - @csrf_at >= CSRF_TTL
+        elapsed(@loog, level: Logger::INFO) do
+          @csrf = get(home.append('csrf')).body
+          throw(:"CSRF token retrieved (#{@csrf.length} chars)")
+        end
+        @csrf_at = Time.now
+      end
+      @csrf
     end
-    token
   end
 
   private

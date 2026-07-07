@@ -789,6 +789,28 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_caches_csrf_token_across_posts
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/transfer').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    baza = fake_baza(compress: false)
+    3.times { baza.transfer('jeff', 1.0, 'pay') }
+    assert_requested(:get, 'https://example.org/csrf', times: 1)
+    assert_requested(:post, 'https://example.org/account/transfer', times: 3)
+  end
+
+  def test_refetches_csrf_token_after_ttl
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    baza = fake_baza(compress: false)
+    baza.csrf
+    baza.instance_variable_set(:@csrf_at, Time.now - BazaRb::CSRF_TTL - 1)
+    baza.csrf
+    assert_requested(:get, 'https://example.org/csrf', times: 2)
+  end
+
   def test_fee_works_with_bigdecimal
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
