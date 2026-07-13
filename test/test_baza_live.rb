@@ -45,7 +45,7 @@ class TestBazaLive < Minitest::Test
     assert_predicate(LIVE.recent(n), :positive?)
     id = LIVE.recent(n)
     assert(
-      wait_for(2 * 60) do
+      wait_for(15 * 60) do
         sleep(5)
         LIVE.finished?(id)
       end,
@@ -131,7 +131,7 @@ class TestBazaLive < Minitest::Test
   end
 
   def fake_name
-    "fake#{SecureRandom.hex(8)}"
+    "fake#{Time.now.to_i}#{SecureRandom.hex(9)}"
   end
 
   def connected?

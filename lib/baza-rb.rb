@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 require 'base64'
+require 'bigdecimal'
 require 'elapsed'
 require 'fileutils'
 require 'iri'
@@ -15,6 +16,7 @@ require 'tago'
 require 'tempfile'
 require 'typhoeus'
 require 'zlib'
+require_relative 'baza-rb/compress'
 require_relative 'baza-rb/version'
 
 # Ruby client for the Zerocracy API.
@@ -33,6 +35,8 @@ require_relative 'baza-rb/version'
 # License:: MIT
 class BazaRb
   DEFAULT_CHUNK_SIZE = 1_000_000
+
+  include Compress
 
   # When the server failed (503).
   class ServerFailure < StandardError; end
@@ -67,8 +71,9 @@ class BazaRb
     @timeout = timeout
     @loog = loog
     @retries = retries
-    @pause = pause
+    @pause = ENV.fetch('BAZA_BACKOFF', pause).to_i
     @compress = compress
+    @mutex = Mutex.new
   end
 
   # Get GitHub login name of the logged in user.
@@ -107,6 +112,8 @@ class BazaRb
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
     raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
+    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
@@ -118,7 +125,7 @@ class BazaRb
           home.append('push').append(pname),
           file.path,
           headers.merge(
-            'X-Zerocracy-Meta' => meta.map { |v| Base64.encode64(v).delete("\n") }.join(' ')
+            'X-Zerocracy-Meta' => meta.map { |v| Base64.strict_encode64(v) }.join(' ')
           ),
           chunk_size:
         )
@@ -225,6 +232,8 @@ class BazaRb
   def lock(pname, owner)
     raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
+    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
     raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
@@ -244,6 +253,8 @@ class BazaRb
   def unlock(pname, owner)
     raise(RuntimeError, 'The "pname" of the job is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" of the job may not be empty') if pname.empty?
+    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
     raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
@@ -260,6 +271,8 @@ class BazaRb
   def recent(name)
     raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
+    raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
     job = nil
     elapsed(@loog, level: Logger::INFO) do
       job = get(home.append('recent').append("#{name}.txt")).body.to_i
@@ -275,6 +288,8 @@ class BazaRb
   def name_exists?(pname)
     raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
+    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     exists = false
     elapsed(@loog, level: Logger::INFO) do
       exists = get(home.append('exists').append(pname)).body == 'yes'
@@ -297,6 +312,8 @@ class BazaRb
   def durable_place(pname, file)
     raise(RuntimeError, 'The "pname" of the durable is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" of the durable may not be empty') if pname.empty?
+    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
     raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
     if File.size(file) > 1024
@@ -398,6 +415,8 @@ class BazaRb
   def durable_find(pname, file)
     raise(RuntimeError, 'The "pname" is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
+    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     raise(RuntimeError, 'The "file" is nil') if file.nil?
     raise(RuntimeError, 'The "file" may not be empty') if file.empty?
     id = nil
@@ -416,16 +435,20 @@ class BazaRb
   # Transfer funds to another user.
   #
   # @param [String] recipient GitHub username of the recipient (e.g. "yegor256")
-  # @param [Float] amount The amount to transfer in Ƶ (zents)
+  # @param [Float, BigDecimal] amount The amount to transfer in Ƶ (zents)
   # @param [String] summary The description/reason for the payment
   # @param [Integer] job Optional job ID to associate with this transfer
+  # @param [String] badge Optional idempotency key; the server dedups on it,
+  #   collapsing a repeated payment into a no-op
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
-  def transfer(recipient, amount, summary, job: nil)
+  def transfer(recipient, amount, summary, job: nil, badge: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
-    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
+      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+    end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
@@ -433,12 +456,14 @@ class BazaRb
       raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
       raise(RuntimeError, 'The ID must be positive') unless job.positive?
     end
+    amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
-    body = { 'human' => recipient, 'amount' => format('%0.6f', amount), 'summary' => summary }
+    body = { 'human' => recipient, 'amount' => amt, 'summary' => summary }
     body['job'] = job unless job.nil?
+    body['badge'] = badge unless badge.nil?
     elapsed(@loog, level: Logger::INFO) do
       id = post(home.append('account').append('transfer'), body).headers['X-Zerocracy-ReceiptId'].to_i
-      throw(:"Transferred Ƶ#{format('%0.6f', amount)} to @#{recipient} at #{@host}")
+      throw(:"Transferred Ƶ#{amt} to @#{recipient} at #{@host}")
     end
     id
   end
@@ -446,7 +471,7 @@ class BazaRb
   # Pay a fee associated with a job.
   #
   # @param [String] tab The category/type of the fee (use "unknown" if not sure)
-  # @param [Float] amount The fee amount in Ƶ (zents)
+  # @param [Float, BigDecimal] amount The fee amount in Ƶ (zents)
   # @param [String] summary The description/reason for the fee
   # @param [Integer] job The ID of the job this fee is for
   # @return [Integer] Receipt ID for the fee payment
@@ -454,23 +479,26 @@ class BazaRb
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
-    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
+      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+    end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "job" is nil') if job.nil?
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       id = post(
         home.append('account').append('fee'),
         {
-          'amount' => format('%0.6f', amount),
+          'amount' => amt,
           'job' => job.to_s,
           'summary' => summary,
           'tab' => tab
         }
       ).headers['X-Zerocracy-ReceiptId'].to_i
-      throw(:"Fee Ƶ#{format('%0.6f', amount)} paid at #{@host}")
+      throw(:"Fee Ƶ#{amt} paid at #{@host}")
     end
     id
   end
@@ -489,6 +517,14 @@ class BazaRb
   # @return [String] The cached result or newly computed result from the block
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
+    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
+    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
+    raise(RuntimeError, 'The "badge" is nil') if badge.nil?
+    raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?
+    raise(RuntimeError, 'The "why" is nil') if why.nil?
+    raise(RuntimeError, 'The "why" may not be empty') if why.empty?
+    raise(RuntimeError, 'The "job" must be an Integer') unless job.nil? || job.is_a?(Integer)
+    raise(RuntimeError, 'The "job" must be positive') unless job.nil? || job.positive?
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
       ret = get(home.append('result').add(badge:), [200, 204])
       return ret.body if ret.code == 200
@@ -518,6 +554,14 @@ class BazaRb
 
   private
 
+  # Calculate exponential backoff in seconds for a given attempt number.
+  #
+  # @param [Integer] attempt The attempt number (1-based)
+  # @return [Integer] The number of seconds to sleep
+  def backoff(attempt)
+    @pause * (2**attempt)
+  end
+
   # Stick host from X-Zerocracy-Host header if present.
   #
   # @param [Typhoeus::Response] ret The HTTP response containing headers
@@ -529,11 +573,13 @@ class BazaRb
     return uri unless sticky
     return uri unless hostname?(sticky)
     host = sticky.strip.chomp('.')
-    if host != @host
-      @loog.debug("Switching host from #{@host} to #{host} as per X-Zerocracy-Host")
-      @host = host
+    @mutex.synchronize do
+      if host != @host
+        @loog.debug("Switching host from #{@host} to #{host} as per X-Zerocracy-Host")
+        @host = host
+      end
+      uri.host(@host)
     end
-    uri.host(@host)
   end
 
   # Validate hostname format according to RFC 1123.
@@ -564,32 +610,6 @@ class BazaRb
     }
   end
 
-  # Decompress gzipped data.
-  #
-  # @param [String] data The gzipped data to decompress
-  # @return [String] The decompressed data
-  def unzip(data)
-    Zlib::GzipReader.new(StringIO.new(data)).read
-  rescue Zlib::GzipFile::Error => e
-    raise(BadCompression, "Failed to unzip #{data.bytesize} bytes: #{e.message}")
-  end
-
-  # Compress request parameters with gzip.
-  #
-  # @param [Hash] params The request parameters with :body and :headers keys
-  # @return [Hash] The modified parameters with compressed body and updated headers
-  def zipped(params)
-    io = StringIO.new
-    gz = Zlib::GzipWriter.new(io)
-    gz.write(params.fetch(:body))
-    gz.close
-    body = io.string
-    params.merge(
-      body:,
-      headers: params.fetch(:headers).merge({ 'Content-Encoding' => 'gzip', 'Content-Length' => body.bytesize })
-    )
-  end
-
   # Build the base URI for API requests.
   #
   # @return [Iri] The base URI object
@@ -605,47 +625,32 @@ class BazaRb
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
   def attempt(&)
-    with_retries(max_tries: @retries, rescue: TimedOut, &)
+    with_retries(max_tries: @retries + 1, rescue: TimedOut, &)
   end
 
-  # Execute a block with retries on 429 status codes.
+  # Retry the HTTP request on rate-limiting (429) and server errors (>= 499).
+  #
+  # Retries on any HTTP status 429 or >= 499. The 499 code ("Client Closed
+  # Request") is emitted by upstream proxies such as nginx when they abort
+  # an in-flight request, typically because of a load-balancer or upstream
+  # timeout. From the client's point of view this is a transient server-side
+  # failure and should be retried just like 5xx responses.
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
-  def await(&)
+  def retry_on(&)
     attempt = 0
     loop do
       ret = yield
-      if ret.code == 429 && attempt < @retries
+      if (ret.code == 429 || ret.code >= 499) && attempt < @retries
         attempt += 1
-        seconds = @pause * (2**attempt)
-        @loog.info("Server seems to be busy, will sleep for #{seconds} (attempt no.#{attempt})...")
-        sleep(seconds) unless ENV['RACK_ENV'] == 'test'
-        next
-      end
-      return ret
-    end
-  end
-
-  # Execute a block with retries on server-side failures.
-  #
-  # Retries on any HTTP status >= 499. The 499 code ("Client Closed Request")
-  # is emitted by upstream proxies such as nginx when they abort an in-flight
-  # request, typically because of a load-balancer or upstream timeout. From
-  # the client's point of view this is a transient server-side failure and
-  # should be retried just like 5xx responses.
-  #
-  # @yield The block to execute with retries
-  # @return [Object] The result of the block execution
-  def recover(&)
-    attempt = 0
-    loop do
-      ret = yield
-      if ret.code >= 499 && attempt < @retries
-        attempt += 1
-        seconds = @pause * (2**attempt)
-        @loog.info("Server seems to be in trouble (#{ret.code}), sleep #{seconds}s (attempt no.#{attempt})...")
-        sleep(seconds) unless ENV['RACK_ENV'] == 'test'
+        seconds = backoff(attempt)
+        if ret.code == 429
+          @loog.info("Server seems to be busy, will sleep for #{seconds} (attempt no.#{attempt})...")
+        else
+          @loog.info("Server seems to be in trouble (#{ret.code}), sleep #{seconds}s (attempt no.#{attempt})...")
+        end
+        sleep(seconds) unless @pause.zero?
         next
       end
       return ret
@@ -721,10 +726,8 @@ class BazaRb
   def get(uri, allowed = [200])
     attempt do
       checked(
-        recover do
-          await do
-            Typhoeus::Request.get(uri.to_s, headers:, connecttimeout: @timeout, timeout: @timeout)
-          end
+        retry_on do
+          Typhoeus::Request.get(uri.to_s, headers:, connecttimeout: @timeout, timeout: @timeout)
         end,
         allowed
       )
@@ -741,16 +744,14 @@ class BazaRb
   def post(uri, params, allowed = [302])
     attempt do
       checked(
-        recover do
-          await do
-            Typhoeus::Request.post(
-              uri.to_s,
-              body: params.merge('_csrf' => csrf).sort.to_h,
-              headers:,
-              connecttimeout: @timeout,
-              timeout: @timeout
-            )
-          end
+        retry_on do
+          Typhoeus::Request.post(
+            uri.to_s,
+            body: params.merge('_csrf' => csrf).sort.to_h,
+            headers:,
+            connecttimeout: @timeout,
+            timeout: @timeout
+          )
         end,
         allowed
       )
@@ -774,26 +775,24 @@ class BazaRb
         ret =
           attempt do
             checked(
-              recover do
-                await do
-                  slice = ''
-                  request = Typhoeus::Request.new(
-                    uri.to_s,
-                    method: :get,
-                    headers: headers.merge(
-                      'Accept' => '*',
-                      'Accept-Encoding' => 'gzip',
-                      'Range' => "bytes=#{File.size(file)}-"
-                    ),
-                    connecttimeout: @timeout,
-                    timeout: @timeout
-                  )
-                  request.on_body do |data|
-                    slice += data
-                  end
-                  request.run
-                  request.response
+              retry_on do
+                slice = ''
+                request = Typhoeus::Request.new(
+                  uri.to_s,
+                  method: :get,
+                  headers: headers.merge(
+                    'Accept' => '*/*',
+                    'Accept-Encoding' => 'gzip',
+                    'Range' => "bytes=#{File.size(file)}-"
+                  ),
+                  connecttimeout: @timeout,
+                  timeout: @timeout
+                )
+                request.on_body do |data|
+                  slice += data
                 end
+                request.run
+                request.response
               end,
               [200, 206, 204, 302]
             )
@@ -828,7 +827,7 @@ class BazaRb
         raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
         raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/^[0-9]+$/)
+        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
@@ -892,10 +891,8 @@ class BazaRb
           ret =
             attempt do
               checked(
-                recover do
-                  await do
-                    Typhoeus::Request.put(uri.to_s, params)
-                  end
+                retry_on do
+                  Typhoeus::Request.put(uri.to_s, params)
                 end
               )
             end

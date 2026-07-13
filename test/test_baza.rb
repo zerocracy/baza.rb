@@ -162,6 +162,41 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_transfers_payment_with_badge
+    csrf = match_regex(/^.+$/, 'swordfish')
+    interaction
+      .upon_receiving('a request for CSRF token')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('user is rich')
+      .upon_receiving('a transfer payment request with badge')
+      .with_request(
+        method: 'POST',
+        path: '/account/transfer',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => csrf,
+          'badge' => match_regex(/^.+$/, 'pay-reward-42'),
+          'human' => match_regex(/^[a-z0-9-]+$/, 'jeff'),
+          'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.500000'),
+          'summary' => match_regex(/^.+$/, 'for fun')
+        }
+      )
+      .will_respond_with(
+        status: 302,
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '9012') }
+      )
+    execute do |server|
+      assert_equal(9012, client(server.port).transfer('jeff', 42.50, 'for fun', badge: 'pay-reward-42'))
+    end
+  end
+
   def test_pays_fee
     csrf = match_regex(/^.+$/, 'swordfish')
     interaction

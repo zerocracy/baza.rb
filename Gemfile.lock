@@ -2,8 +2,10 @@ PATH
   remote: .
   specs:
     baza.rb (0.0.0)
+      base64 (~> 0.3)
       elapsed (~> 0.2)
       iri (~> 0.11)
+      logger (~> 1.6)
       loog (~> 0.6)
       retries (~> 0.0)
       tago (~> 0.2)
@@ -54,7 +56,7 @@ GEM
       logger
     expgen (0.1.1)
       parslet
-    factbase (0.19.13)
+    factbase (0.19.16)
       backtrace (~> 0.4)
       decoor (~> 0.1)
       ellipsized (~> 0.3)
@@ -74,10 +76,10 @@ GEM
     i18n (1.14.8)
       concurrent-ruby (~> 1.0)
     iri (0.11.8)
-    json (2.19.9)
+    json (2.20.0)
     jsonpath (1.1.5)
       multi_json
-    language_server-protocol (3.17.0.5)
+    language_server-protocol (3.17.0.6)
     lint_roller (1.1.0)
     logger (1.7.0)
     loog (0.8.0)
@@ -94,13 +96,13 @@ GEM
     multi_json (1.21.1)
     mustermann (3.1.1)
     nio4r (2.7.5)
-    nokogiri (1.19.3-arm64-darwin)
+    nokogiri (1.19.4-arm64-darwin)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-darwin)
+    nokogiri (1.19.4-x86_64-darwin)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-linux-gnu)
+    nokogiri (1.19.4-x86_64-linux-gnu)
       racc (~> 1.4)
-    nokogiri (1.19.3-x86_64-linux-musl)
+    nokogiri (1.19.4-x86_64-linux-musl)
       racc (~> 1.4)
     online (0.3.0)
       openssl (>= 3)
@@ -200,7 +202,7 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-support (3.13.7)
-    rubocop (1.87.0)
+    rubocop (1.88.2)
       json (~> 2.3)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.1.0)
@@ -211,7 +213,7 @@ GEM
       rubocop-ast (>= 1.49.0, < 2.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 2.4.0, < 4.0)
-    rubocop-ast (1.49.1)
+    rubocop-ast (1.50.0)
       parser (>= 3.3.7.2)
       prism (~> 1.7)
     rubocop-elegant (0.5.1)
@@ -269,7 +271,7 @@ GEM
       hashdiff (>= 0.4.0, < 2.0.0)
     webrick (1.9.2)
     yaml (0.4.0)
-    yard (0.9.43)
+    yard (0.9.44)
     zeitwerk (2.8.2)
 
 PLATFORMS
@@ -310,7 +312,7 @@ DEPENDENCIES
   wait_for (~> 0.1)
   webmock (~> 3.24)
   webrick (~> 1.9)
-  yard (= 0.9.43)
+  yard (= 0.9.44)
 
 BUNDLED WITH
    2.6.8

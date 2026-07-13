@@ -152,6 +152,10 @@ class TestFake < Minitest::Test
     assert_equal(42, BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', job: 42))
   end
 
+  def test_transfer_accepts_badge_kwarg
+    assert_equal(42, BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', badge: 'pay-reward-1'))
+  end
+
   def test_transfer_rejects_unknown_keyword
     assert_raises(ArgumentError) do
       BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', other: 42)
@@ -181,7 +185,7 @@ class TestFake < Minitest::Test
 
   def test_transfer_rejects_non_float_amount
     assert_equal(
-      'The "amount" must be Float',
+      'The "amount" must be Float or BigDecimal',
       assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1, 'test-payment') }.message
     )
   end
@@ -213,7 +217,7 @@ class TestFake < Minitest::Test
 
   def test_fee_raises_when_amount_is_not_float
     assert_equal(
-      'The "amount" must be Float',
+      'The "amount" must be Float or BigDecimal',
       assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 43, 'for fun', 44) }.message
     )
   end

@@ -49,6 +49,7 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+<<<<<<< 349-durable-place-io
   def test_durable_place_closes_zip
     WebMock.disable_net_connect!
     baza = fake_baza(compress: false)
@@ -69,6 +70,24 @@ class TestBazaRbEdge < Minitest::Test
         end
       assert_empty(leaked, "durable_place left #{leaked.size} open IO(s) for #{file}")
     end
+=======
+  def test_durable_place_raises_when_pname_is_invalid
+    assert_includes(
+      assert_raises(RuntimeError) { fake_baza.durable_place('INVALID', '/tmp/x') }.message,
+      'is not valid'
+    )
+  end
+
+  def test_durable_place_raises_when_pname_is_too_long
+    assert_includes(
+      assert_raises(RuntimeError) { fake_baza.durable_place('a' * 33, '/tmp/x') }.message,
+      'is too long'
+    )
+  end
+
+  def test_durable_find_raises_when_pname_is_invalid
+    assert_includes(assert_raises(RuntimeError) { fake_baza.durable_find('BAD!', 'file') }.message, 'is not valid')
+>>>>>>> master
   end
 
   def test_real_http
@@ -152,6 +171,68 @@ class TestBazaRbEdge < Minitest::Test
       .to_return(status: 200, body: '')
     BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: true, timeout: 0.1, retries: 2).push(
       'test-pname', 'some data', ['meta']
+    )
+    assert_requested(:put, 'https://example.org:443/push/test-pname', times: 1)
+  end
+
+  def test_enter_raises_when_pname_is_nil
+    assert_equal('The "pname" is nil', assert_raises(RuntimeError) { fake_baza.enter(nil, 'b', 'why', nil) }.message)
+  end
+
+  def test_enter_raises_when_pname_is_empty
+    assert_equal(
+      'The "pname" may not be empty',
+      assert_raises(RuntimeError) { fake_baza.enter('', 'b', 'why', nil) }.message
+    )
+  end
+
+  def test_enter_raises_when_badge_is_nil
+    assert_equal(
+      'The "badge" is nil',
+      assert_raises(RuntimeError) { fake_baza.enter('pname', nil, 'why', nil) }.message
+    )
+  end
+
+  def test_enter_raises_when_badge_is_empty
+    assert_equal(
+      'The "badge" may not be empty',
+      assert_raises(RuntimeError) { fake_baza.enter('pname', '', 'why', nil) }.message
+    )
+  end
+
+  def test_enter_raises_when_why_is_nil
+    assert_equal('The "why" is nil', assert_raises(RuntimeError) { fake_baza.enter('pname', 'b', nil, nil) }.message)
+  end
+
+  def test_enter_raises_when_why_is_empty
+    assert_equal(
+      'The "why" may not be empty',
+      assert_raises(RuntimeError) { fake_baza.enter('pname', 'b', '', nil) }.message
+    )
+  end
+
+  def test_enter_raises_when_job_is_not_integer
+    assert_equal(
+      'The "job" must be an Integer',
+      assert_raises(RuntimeError) { fake_baza.enter('pname', 'b', 'why', '1') }.message
+    )
+  end
+
+  def test_enter_raises_when_job_is_not_positive
+    assert_equal(
+      'The "job" must be positive',
+      assert_raises(RuntimeError) { fake_baza.enter('pname', 'b', 'why', 0) }.message
+    )
+  end
+
+  def test_push_meta_uses_strict_encoding
+    WebMock.disable_net_connect!
+    long = 'a' * 100
+    stub_request(:put, 'https://example.org:443/push/test-pname')
+      .with(headers: { 'X-Zerocracy-Meta' => Base64.strict_encode64(long) })
+      .to_return(status: 200, body: '')
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2).push(
+      'test-pname', 'some data', [long]
     )
     assert_requested(:put, 'https://example.org:443/push/test-pname', times: 1)
   end
@@ -253,6 +334,17 @@ class TestBazaRbEdge < Minitest::Test
       )
       assert_raises(BazaRb::BadCompression) { fake_baza.durable_load(42, file) }
     end
+  end
+
+  def test_unzip_rejects_compression_bomb
+    bomb = StringIO.new
+    gz = Zlib::GzipWriter.new(bomb)
+    gz.write('x' * (BazaRb::LIMIT_UNCOMPRESSED + 1))
+    gz.close
+    assert_includes(
+      assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, bomb.string) }.message,
+      'exceeds limit'
+    )
   end
 
   def test_checked_with_internal_error
@@ -367,6 +459,19 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_download_uses_valid_accept_header
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Accept' => '*/*', 'Range' => 'bytes=0-' })
+        .to_return(status: 200, body: 'content', headers: {})
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      assert_equal('content', File.read(file))
+    end
+  end
+
   # Reproduces zerocracy/baza.rb#289: BazaRb#download never retries on
   # timeout because checked() is called outside attempt. After the fix,
   # a libcurl operation_timedout on the first GET re-raises BazaRb::TimedOut
@@ -422,6 +527,22 @@ class TestBazaRbEdge < Minitest::Test
           fake_baza.__send__(:download, fake_baza.__send__(:home).append('file'), file)
         end.message,
         'Total size is not valid ("*malformed")'
+      )
+    end
+  end
+
+  def test_download_rejects_range_end_with_newline
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => "bytes 0-12\nfoo/100" })
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.__send__(:download, fake_baza.__send__(:home).append('file'), file)
+        end.message,
+        'Range is not valid'
       )
     end
   end
@@ -612,6 +733,27 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_rehost_is_thread_safe
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    candidates = (1..16).map { |i| "server#{i}.example.org" }
+    barrier = Queue.new
+    candidates.map do |name|
+      Thread.new do
+        barrier.pop
+        ret = Struct.new(:headers).new({ 'X-Zerocracy-Host' => name })
+        50.times { baza.__send__(:rehost, ret, baza.__send__(:home)) }
+      end
+    end.tap do |ts|
+      candidates.size.times { barrier << :go }
+      ts.each(&:join)
+    end
+    assert_includes(
+      candidates,
+      baza.instance_variable_get(:@host),
+      'rehost should leave @host at one of the candidate hostnames'
+    )
+  end
+
   def test_lock_raises_when_owner_is_empty
     assert_equal(
       'The "owner" of the lock may not be empty',
@@ -619,11 +761,39 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_lock_raises_when_pname_is_invalid
+    assert_includes(assert_raises(RuntimeError) { fake_baza.lock('INVALID', 'owner') }.message, 'is not valid')
+  end
+
+  def test_lock_raises_when_pname_is_too_long
+    assert_includes(assert_raises(RuntimeError) { fake_baza.lock('a' * 33, 'owner') }.message, 'is too long')
+  end
+
+  def test_unlock_raises_when_pname_is_invalid
+    assert_includes(assert_raises(RuntimeError) { fake_baza.unlock('BAD!', 'owner') }.message, 'is not valid')
+  end
+
+  def test_name_exists_raises_when_pname_is_invalid
+    assert_includes(assert_raises(RuntimeError) { fake_baza.name_exists?('with space') }.message, 'is not valid')
+  end
+
+  def test_recent_raises_when_pname_is_invalid
+    assert_includes(assert_raises(RuntimeError) { fake_baza.recent('../etc') }.message, 'is not valid')
+  end
+
   def test_push_raises_when_data_is_empty
     assert_equal(
       'The "data" of the job may not be empty',
       assert_raises(RuntimeError) { fake_baza.push('pname', '', []) }.message
     )
+  end
+
+  def test_push_raises_when_pname_is_invalid
+    assert_includes(assert_raises(RuntimeError) { fake_baza.push('INVALID', 'data', []) }.message, 'is not valid')
+  end
+
+  def test_push_raises_when_pname_is_too_long
+    assert_includes(assert_raises(RuntimeError) { fake_baza.push('a' * 33, 'data', []) }.message, 'is too long')
   end
 
   def test_transfer_raises_when_amount_is_not_positive
@@ -663,6 +833,54 @@ class TestBazaRbEdge < Minitest::Test
         'The "amount" must be positive',
         assert_raises(RuntimeError) { fake_baza.fee('unknown', amount, 'pay', 42) }.message
       )
+    end
+  end
+
+  def test_transfer_works_with_bigdecimal
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/transfer').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    assert_equal(7, fake_baza(compress: false).transfer('jeff', BigDecimal('1.23456789'), 'pay'))
+    assert_requested(:post, 'https://example.org/account/transfer') do |req|
+      req.body.include?('amount=1.234567')
+    end
+  end
+
+  def test_transfer_sends_badge
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/transfer').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    assert_equal(7, fake_baza(compress: false).transfer('jeff', 1.0, 'pay', badge: 'pay-reward-99'))
+    assert_requested(:post, 'https://example.org/account/transfer') do |req|
+      req.body.include?('badge=pay-reward-99')
+    end
+  end
+
+  def test_transfer_omits_badge_when_nil
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/transfer').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    assert_equal(7, fake_baza(compress: false).transfer('jeff', 1.0, 'pay'))
+    assert_requested(:post, 'https://example.org/account/transfer') do |req|
+      !req.body.include?('badge=')
+    end
+  end
+
+  def test_fee_works_with_bigdecimal
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/fee').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    assert_equal(7, fake_baza(compress: false).fee('unknown', BigDecimal('0.00000123'), 'test-fee', 42))
+    assert_requested(:post, 'https://example.org/account/fee') do |req|
+      req.body.include?('amount=0.000001')
     end
   end
 

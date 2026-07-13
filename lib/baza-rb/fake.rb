@@ -198,30 +198,36 @@ class BazaRb::Fake
   # @param [Float] amount The amount to transfer in ƶ (zents)
   # @param [String] summary The description/reason for the payment
   # @param [Integer] job Optional job ID to associate with this transfer
+  # @param [String] badge Optional idempotency key for deduping the payment
   # @return [Integer] Always returns 42 as the fake receipt ID
-  def transfer(recipient, amount, summary, job: nil)
+  def transfer(recipient, amount, summary, job: nil, badge: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
-    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
+      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+    end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     checkid(job) unless job.nil?
+    raise(RuntimeError, 'The "badge" must be a String') if !badge.nil? && !badge.is_a?(String)
     42
   end
 
   # Pay a fee associated with a job.
   #
   # @param [String] tab The category/type of the fee
-  # @param [Float] amount The fee amount in ƶ (zents)
+  # @param [Float, BigDecimal] amount The fee amount in ƶ (zents)
   # @param [String] summary The description/reason for the fee
   # @param [Integer] job The ID of the job this fee is for
   # @return [Integer] Always returns 42 as the fake receipt ID
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
-    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
+      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+    end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "job" is nil') if job.nil?
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)

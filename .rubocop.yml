@@ -28,6 +28,7 @@ Elegant/GoodMethodName:
     - durable_unlock
     - durable_find
     - format_value
+    - retry_on
     - will_respond_with
 Elegant/ClassInModule:
   Exclude:
