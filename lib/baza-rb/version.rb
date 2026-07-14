@@ -13,5 +13,5 @@
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class BazaRb
-  VERSION = '0.0.0'
+  VERSION = '0.15.0'
 end
