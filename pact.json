@@ -1,0 +1,1827 @@
+{
+  "consumer": {
+    "name": "BazaRb"
+  },
+  "interactions": [
+    {
+      "description": "a balance request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "user is rich"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/account/balance"
+      },
+      "response": {
+        "body": {
+          "content": "42.33",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[0-9]+\\.[0-9]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable find request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact10"
+          }
+        },
+        {
+          "name": "durable exists",
+          "params": {
+            "file": "bar.txt",
+            "id": 32,
+            "pname": "pact10"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "query": {
+            "file": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:[a-z0-9.]+)"
+                }
+              ]
+            },
+            "pname": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[a-z0-9]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/durable-find",
+        "query": {
+          "file": [
+            "bar.txt"
+          ],
+          "pname": [
+            "pact10"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": "32",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[1-9][0-9]*$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable find request that returns not found",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact11"
+          }
+        },
+        {
+          "name": "durable missing",
+          "params": {
+            "file": "bar.txt",
+            "pname": "pact11"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "query": {
+            "file": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:[a-z0-9.]+)"
+                }
+              ]
+            },
+            "pname": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[a-z0-9]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/durable-find",
+        "query": {
+          "file": [
+            "bar.txt"
+          ],
+          "pname": [
+            "pact11"
+          ]
+        }
+      },
+      "response": {
+        "status": 404
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable load request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact4"
+          }
+        },
+        {
+          "name": "durable exists",
+          "params": {
+            "file": "bar.txt",
+            "id": 427,
+            "pname": "pact4"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/durables\\/[1-9][0-9]*$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/durables/427"
+      },
+      "response": {
+        "matchingRules": {
+          "status": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "statusCode",
+                  "status": "success"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable load request for empty content",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "foo"
+          }
+        },
+        {
+          "name": "durable exists",
+          "params": {
+            "file": "bar.txt",
+            "id": 54,
+            "pname": "foo"
+          }
+        },
+        {
+          "name": "durable is empty",
+          "params": {
+            "id": 54
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/durables\\/[1-9][0-9]*$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/durables/54"
+      },
+      "response": {
+        "body": {
+          "content": ""
+        },
+        "matchingRules": {
+          "status": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "statusCode",
+                  "status": "success"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable lock request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact7"
+          }
+        },
+        {
+          "name": "durable exists",
+          "params": {
+            "file": "bar.txt",
+            "id": 65,
+            "pname": "pact7"
+          }
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&owner=the-owner",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/durables\\/[1-9][0-9]*\\/lock$)"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/durables/65/lock"
+      },
+      "response": {
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable save request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact3"
+          }
+        },
+        {
+          "name": "durable exists",
+          "params": {
+            "file": "bar.txt",
+            "id": 426,
+            "pname": "pact3"
+          }
+        },
+        {
+          "name": "durable is locked",
+          "params": {
+            "id": 426,
+            "owner": "previous-owner"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "AAAgaGksIGR1ZGUhIAD//hI=",
+          "contentType": "application/octet-stream",
+          "encoded": "base64"
+        },
+        "headers": {
+          "Content-Length": [
+            "17"
+          ],
+          "Content-Type": [
+            "application/octet-stream"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "contentType",
+                  "value": "application/octet-stream"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Content-Length": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[0-9]+$)"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/durables\\/[1-9][0-9]*$)"
+              }
+            ]
+          }
+        },
+        "method": "PUT",
+        "path": "/durables/426"
+      },
+      "response": {
+        "body": {
+          "content": "thanks!",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a durable unlock request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact8"
+          }
+        },
+        {
+          "name": "durable exists",
+          "params": {
+            "file": "bar.txt",
+            "id": 52,
+            "pname": "pact8"
+          }
+        },
+        {
+          "name": "durable is locked",
+          "params": {
+            "id": 52,
+            "owner": "Robert DeNiro"
+          }
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&owner=Robert DeNiro",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/durables\\/[1-9][0-9]*\\/unlock$)"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/durables/52/unlock"
+      },
+      "response": {
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a fee payment request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "user is rich"
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact96"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 776,
+            "pname": "pact96"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&amount=42.770000&job=776&summary=the summary&tab=unknown",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "method": "POST",
+        "path": "/account/fee"
+      },
+      "response": {
+        "headers": {
+          "X-Zerocracy-ReceiptId": [
+            "9898"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "X-Zerocracy-ReceiptId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[1-9][0-9]*$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a finished check request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact43"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 542,
+            "pname": "pact43"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/finished\\/[1-9][0-9]*$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/finished/542"
+      },
+      "response": {
+        "body": {
+          "content": "yes",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^(yes|started .+)$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a lock request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact1"
+          }
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&owner=the-owner",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/lock\\/[a-z0-9]+$)"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/lock/pact1"
+      },
+      "response": {
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a lock request that fails",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact2"
+          }
+        },
+        {
+          "name": "product is locked",
+          "params": {
+            "owner": "Barack Obama",
+            "pname": "pact2"
+          }
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&owner=Donald Trump",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/lock\\/[a-z0-9]+$)"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/lock/pact2"
+      },
+      "response": {
+        "status": 409
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a pull request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact93"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 47,
+            "pname": "pact93"
+          }
+        },
+        {
+          "name": "job is finished",
+          "params": {
+            "id": 47
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/pull\\/[1-9][0-9]*\\.fb$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/pull/47.fb"
+      },
+      "response": {
+        "matchingRules": {
+          "status": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "statusCode",
+                  "status": "success"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a push request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "user is rich"
+        },
+        {
+          "name": "queue is empty"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact72"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "BAhbAA==",
+          "contentType": "application/octet-stream",
+          "encoded": "base64"
+        },
+        "headers": {
+          "Content-Type": [
+            "application/octet-stream"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "contentType",
+                  "value": "application/octet-stream"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:\\/push\\/[a-z0-9]+)"
+              }
+            ]
+          }
+        },
+        "method": "PUT",
+        "path": "/push/pact72"
+      },
+      "response": {
+        "body": {
+          "content": "Received 4 bytes as push-5-pact72",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ],
+          "X-Zerocracy-JobId": [
+            "890"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          },
+          "header": {
+            "X-Zerocracy-JobId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[0-9]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a recent job check",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact61"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 124,
+            "pname": "pact61"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:\\/recent\\/[a-z0-9]+\\.txt)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/recent/pact61.txt"
+      },
+      "response": {
+        "body": {
+          "content": "124",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[1-9][0-9]*$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for CSRF token",
+      "pending": false,
+      "request": {
+        "method": "GET",
+        "path": "/csrf"
+      },
+      "response": {
+        "body": {
+          "content": "swordfish",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for CSRF token",
+      "pending": false,
+      "request": {
+        "method": "GET",
+        "path": "/csrf"
+      },
+      "response": {
+        "body": {
+          "content": "swordfish",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a stdout request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "foo"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 17,
+            "pname": "foo"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/stdout\\/[1-9][0-9]*\\.txt$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/stdout/17.txt"
+      },
+      "response": {
+        "body": {
+          "content": "hello, друг!",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a transfer payment request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "user is rich"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&human=jeff&amount=42.500000&summary=for fun",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "method": "POST",
+        "path": "/account/transfer"
+      },
+      "response": {
+        "headers": {
+          "X-Zerocracy-ReceiptId": [
+            "42"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "X-Zerocracy-ReceiptId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[1-9][0-9]*$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a transfer payment request with badge",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "user is rich"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&badge=pay-reward-42&human=jeff&amount=42.500000&summary=for fun",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "method": "POST",
+        "path": "/account/transfer"
+      },
+      "response": {
+        "headers": {
+          "X-Zerocracy-ReceiptId": [
+            "9012"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "X-Zerocracy-ReceiptId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[1-9][0-9]*$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a transfer payment request with job",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "user is rich"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact31"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 555,
+            "pname": "pact31"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&job=555&human=jeff&amount=42.500000&summary=for fun",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "method": "POST",
+        "path": "/account/transfer"
+      },
+      "response": {
+        "headers": {
+          "X-Zerocracy-ReceiptId": [
+            "8789"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "X-Zerocracy-ReceiptId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[1-9][0-9]*$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a valve creation request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact9"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 183,
+            "pname": "pact9"
+          }
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&badge=bar&pname=pact9&result=after&why=no reason",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "matchingRules": {
+          "query": {
+            "job": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[0-9]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/valves",
+        "query": {
+          "job": [
+            "183"
+          ]
+        }
+      },
+      "response": {
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a verification verdict request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact98"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 513,
+            "pname": "pact98"
+          }
+        },
+        {
+          "name": "job is finished",
+          "params": {
+            "id": 513
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/jobs\\/[1-9][0-9]*\\/verified\\.txt$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/jobs/513/verified.txt"
+      },
+      "response": {
+        "body": {
+          "content": "done",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^(|done|.+)$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a whoami request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/whoami"
+      },
+      "response": {
+        "body": {
+          "content": "jeff",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[a-z0-9-]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an enter request with cached result",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "foo"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 188,
+            "pname": "foo"
+          }
+        },
+        {
+          "name": "valve exists",
+          "params": {
+            "badge": "bar",
+            "job": 188,
+            "pname": "foo",
+            "result": "before"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "query": {
+            "badge": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[a-z0-9.]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/result",
+        "query": {
+          "badge": [
+            "bar"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": "before",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an enter request without cached result",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact9"
+          }
+        },
+        {
+          "name": "valve missing",
+          "params": {
+            "badge": "bar",
+            "pname": "pact9"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "query": {
+            "badge": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[a-z0-9.]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "method": "GET",
+        "path": "/result",
+        "query": {
+          "badge": [
+            "bar"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": ""
+        },
+        "status": 204
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an exists check",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact74"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/exists\\/[a-z0-9]+$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/exists/pact74"
+      },
+      "response": {
+        "body": {
+          "content": "yes",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^.+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an exit code request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact22"
+          }
+        },
+        {
+          "name": "job exists",
+          "params": {
+            "id": 94,
+            "pname": "pact22"
+          }
+        }
+      ],
+      "request": {
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/exit\\/[1-9][0-9]*\\.txt$)"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/exit/94.txt"
+      },
+      "response": {
+        "body": {
+          "content": "0",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "(?-mix:^[0-9]+$)"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an unlock request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "user is authenticated"
+        },
+        {
+          "name": "product exists",
+          "params": {
+            "pname": "pact25"
+          }
+        },
+        {
+          "name": "product is locked",
+          "params": {
+            "owner": "Jeff Lebowski",
+            "pname": "pact25"
+          }
+        },
+        {
+          "name": "CSRF token exists",
+          "params": {
+            "token": "swordfish"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "_csrf=swordfish&owner=Jeff Lebowski",
+          "contentType": "application/x-www-form-urlencoded",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "matchingRules": {
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "(?-mix:^\\/unlock\\/.+$)"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/unlock/pact25"
+      },
+      "response": {
+        "status": 302
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pact-ruby-v2": {
+      "pact-ffi": "0.4.28"
+    },
+    "pactRust": {
+      "ffi": "0.4.28",
+      "mockserver": "1.2.16",
+      "models": "1.3.5"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    },
+    "client": {
+      "name": "BazaRb",
+      "version": "0.0.0",
+      "date": "2026-07-14T06:27:00Z"
+    }
+  },
+  "provider": {
+    "name": "Zerocracy"
+  }
+}
