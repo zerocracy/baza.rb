@@ -297,6 +297,13 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_fee_raises_when_tab_is_empty
+    assert_equal(
+      'The "tab" may not be empty',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('', 1.0, 'for fun', 44) }.message
+    )
+  end
+
   def test_fee_raises_when_job_is_not_positive
     assert_equal(
       'The "job" must be positive',

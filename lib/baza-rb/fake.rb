@@ -224,6 +224,7 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake receipt ID
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
+    raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
