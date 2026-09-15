@@ -30,6 +30,9 @@ Elegant/GoodMethodName:
     - format_value
     - retry_on
     - will_respond_with
+Elegant/GoodVariableName:
+  AllowedNames:
+    - blanks_attempt
 Elegant/ClassInModule:
   Exclude:
     - 'lib/**/*'
