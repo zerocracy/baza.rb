@@ -111,6 +111,37 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_push_rejects_invalid_chunk_sizes
+    WebMock.disable_net_connect!
+    stub_request(:put, 'https://example.org/push/simple').to_return(status: 200)
+    [0, -1, 1.5, nil, '1'].each do |size|
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.push('simple', 'payload', [], chunk_size: size)
+        end.message,
+        'The "chunk_size" must be a positive Integer'
+      )
+    end
+    assert_not_requested(:put, 'https://example.org/push/simple')
+  end
+
+  def test_durable_save_rejects_invalid_chunk_sizes
+    WebMock.disable_net_connect!
+    stub_request(:put, 'https://example.org/durables/42').to_return(status: 200)
+    Tempfile.create do |file|
+      File.binwrite(file.path, 'payload')
+      [0, -1, 1.5, nil, '1'].each do |size|
+        assert_includes(
+          assert_raises(RuntimeError) do
+            fake_baza.durable_save(42, file.path, chunk_size: size)
+          end.message,
+          'The "chunk_size" must be a positive Integer'
+        )
+      end
+    end
+    assert_not_requested(:put, 'https://example.org/durables/42')
+  end
+
   def test_push_compressed_content
     WebMock.enable_net_connect!
     fb = Factbase.new
