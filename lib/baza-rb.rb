@@ -63,7 +63,11 @@ class BazaRb
   # @param [Integer] pause The factor on pause (<1 means faster, >1 means slower)
   # @param [Loog] loog The logging facility (default: Loog::NULL)
   # @param [Boolean] compress Whether to use GZIP compression for requests/responses (default: true)
-  def initialize(host, port, token, ssl: true, timeout: 30, retries: 5, pause: 1, loog: Loog::NULL, compress: true)
+  # @param [Boolean] sticky Whether to follow X-Zerocracy-Host header, switching to a different host (default: false)
+  def initialize(
+    host, port, token, ssl: true, timeout: 30, retries: 5, pause: 1, loog: Loog::NULL, compress: true,
+    sticky: false
+  )
     @host = host
     @port = port
     @ssl = ssl
@@ -73,6 +77,7 @@ class BazaRb
     @retries = retries
     @pause = ENV.fetch('BAZA_BACKOFF', pause).to_i
     @compress = compress
+    @sticky = sticky
     @mutex = Mutex.new
   end
 
@@ -569,6 +574,7 @@ class BazaRb
   # @return [Iri] The updated URI object (or original if no valid header present)
   # @note Invalid hostnames are logged as warnings and ignored
   def rehost(ret, uri)
+    return uri unless @sticky
     sticky = ret.headers && ret.headers['X-Zerocracy-Host']
     return uri unless sticky
     return uri unless hostname?(sticky)
