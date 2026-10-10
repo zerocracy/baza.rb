@@ -165,6 +165,7 @@ class BazaRb::Fake
   def durable_load(id, file)
     checkid(id)
     raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    File.write(file, '')
   end
 
   # Lock a single durable.
