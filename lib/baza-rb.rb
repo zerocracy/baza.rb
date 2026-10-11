@@ -798,10 +798,11 @@ class BazaRb
             )
           end
         rheaders = ret.headers || {}
+        gzipped = rheaders['Content-Encoding']&.casecmp?('gzip')
         msg = [
           "GET #{uri.to_uri.path} #{ret.code}",
           "#{slice.bytesize} bytes",
-          ('in gzip' if rheaders['Content-Encoding'] == 'gzip'),
+          ('in gzip' if gzipped),
           ("ranged as #{rheaders['Content-Range'].inspect}" if rheaders['Content-Range'])
         ]
         uri = rehost(ret, uri)
@@ -809,7 +810,7 @@ class BazaRb
           sleep(2)
           next
         end
-        if rheaders['Content-Encoding'] == 'gzip'
+        if gzipped
           begin
             slice = unzip(slice)
             msg << "unzipped to #{slice.bytesize} bytes"
