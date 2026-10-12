@@ -67,6 +67,45 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(assert_raises(RuntimeError) { fake_baza.durable_find('BAD!', 'file') }.message, 'is not valid')
   end
 
+  def test_durable_find_rejects_malformed_id
+    WebMock.disable_net_connect!
+    invalid = ['', 'not-an-id', '12junk', '0', '-1', '+1', ' 12', "12\n", '012', '1_2', '0x10']
+    responses = invalid.dup
+    stub_request(:get, 'https://example.org:443/durable-find')
+      .with(query: { 'file' => 'artifact.zip', 'pname' => 'valid-job' })
+      .to_return { { status: 200, body: responses.shift } }
+    invalid.each do |body|
+      assert_equal(
+        'Invalid durable ID response at GET /durable-find with HTTP 200: ' \
+        "#{body.inspect} (expected a positive decimal ID)",
+        assert_raises(RuntimeError) { fake_baza.durable_find('valid-job', 'artifact.zip') }.message
+      )
+    end
+    assert_empty(responses)
+  end
+
+  def test_durable_find_accepts_positive_id
+    WebMock.disable_net_connect!
+    ids = ['1', '32', '9' * 100]
+    responses = ids.dup
+    stub_request(:get, 'https://example.org:443/durable-find')
+      .with(query: { 'file' => 'artifact.zip', 'pname' => 'valid-job' })
+      .to_return { { status: 200, body: responses.shift } }
+    expected = [1, 32, Integer(ids.last, 10)]
+    ids.each_with_index do |_body, index|
+      assert_equal(expected[index], fake_baza.durable_find('valid-job', 'artifact.zip'))
+    end
+    assert_empty(responses)
+  end
+
+  def test_durable_find_returns_nil_when_missing
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/durable-find')
+      .with(query: { 'file' => 'artifact.zip', 'pname' => 'valid-job' })
+      .to_return(status: 404)
+    assert_nil(fake_baza.durable_find('valid-job', 'artifact.zip'))
+  end
+
   def test_real_http
     WebMock.enable_net_connect!
     assert_equal(
