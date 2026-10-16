@@ -354,6 +354,24 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_enter_rejects_nil_reason
+    called = false
+    assert_equal(
+      'The "why" is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.enter('job', 'badge', nil, nil) { called = true } }.message
+    )
+    refute(called)
+  end
+
+  def test_enter_rejects_empty_reason
+    called = false
+    assert_equal(
+      'The reason cannot be empty',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.enter('job', 'badge', '', nil) { called = true } }.message
+    )
+    refute(called)
+  end
+
   def test_enter_rejects_multiline_name_and_badge
     baza = BazaRb::Fake.new
     assert_equal(
