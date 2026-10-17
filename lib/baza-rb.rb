@@ -324,14 +324,16 @@ class BazaRb
     end
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('durable-place'),
-        {
-          'pname' => pname,
-          'file' => File.basename(file),
-          'zip' => File.open(file, 'rb')
-        }
-      ).headers['X-Zerocracy-DurableId'].to_i
+      File.open(file, 'rb') do |f|
+        id = post(
+          home.append('durable-place'),
+          {
+            'pname' => pname,
+            'file' => File.basename(file),
+            'zip' => f
+          }
+        ).headers['X-Zerocracy-DurableId'].to_i
+      end
       throw(:"Durable ##{id} (#{file}, #{File.size(file)} bytes) placed for job \"#{pname}\" at #{@host}")
     end
     id
@@ -875,14 +877,14 @@ class BazaRb
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice =
-          if total > chunk_size
-            File.open(file, 'rb') do |f|
+          File.open(file, 'rb') do |f|
+            if total > chunk_size
               params[:headers]['X-Zerocracy-Chunk'] = chunk.to_s
               f.seek(chunk_size * chunk)
               f.read(chunk_size) || ''
+            else
+              f.read || ''
             end
-          else
-            File.binread(file)
           end
         params[:body] = slice
         params[:headers]['Content-Length'] = slice.bytesize.to_s
