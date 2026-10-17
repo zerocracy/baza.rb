@@ -222,8 +222,9 @@ class BazaRb::Fake
   # @param [Float, BigDecimal] amount The fee amount in ƶ (zents)
   # @param [String] summary The description/reason for the fee
   # @param [Integer] job The ID of the job this fee is for
+  # @param [String] badge Optional idempotency key for deduping the fee
   # @return [Integer] Always returns 42 as the fake receipt ID
-  def fee(tab, amount, summary, job)
+  def fee(tab, amount, summary, job, badge: nil)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
@@ -236,6 +237,7 @@ class BazaRb::Fake
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    raise(RuntimeError, 'The "badge" must be a String') if !badge.nil? && !badge.is_a?(String)
     42
   end
 
