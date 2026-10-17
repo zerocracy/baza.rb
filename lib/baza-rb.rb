@@ -440,7 +440,7 @@ class BazaRb
   #   collapsing a repeated payment into a no-op
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
-  def transfer(recipient, amount, summary, job: nil, badge: nil)
+  def transfer(recipient, amount, summary, job: nil, badge: nil) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
@@ -449,6 +449,7 @@ class BazaRb
     end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(ArgumentError, 'Summary must be a String') unless summary.is_a?(String)
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     unless job.nil?
       raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
@@ -485,6 +486,7 @@ class BazaRb
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(ArgumentError, 'Summary must be a String') unless summary.is_a?(String)
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
