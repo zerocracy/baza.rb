@@ -109,12 +109,14 @@ class BazaRb
   # @param [Array<String>] meta List of metadata strings to attach to the job
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the push operation fails
+  # @raise [ArgumentError] If the data is not a String
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
     raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
+    raise(ArgumentError, 'The "data" must be a String') unless data.is_a?(String)
     raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
     raise(RuntimeError, 'The "meta" of the job must be an Array') unless meta.is_a?(Array)
