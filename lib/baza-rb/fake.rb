@@ -262,6 +262,7 @@ class BazaRb::Fake
   private
 
   def checkname(name)
+    raise(RuntimeError, "The name '#{name}' is not a String") unless name.is_a?(String)
     raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
   end

@@ -330,4 +330,85 @@ class TestFake < Minitest::Test
   def test_csrf
     assert_equal('fake-csrf-token', BazaRb::Fake.new.csrf)
   end
+
+  def test_name_exists_rejects_non_string
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        "The name '#{bad}' is not a String",
+        assert_raises(RuntimeError) { baza.name_exists?(bad) }.message
+      )
+    end
+  end
+
+  def test_name_rejects_non_string_in_lock
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        "The name '#{bad}' is not a String",
+        assert_raises(RuntimeError) { baza.lock(bad, 'test-owner') }.message
+      )
+    end
+  end
+
+  def test_name_rejects_non_string_in_unlock
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        "The name '#{bad}' is not a String",
+        assert_raises(RuntimeError) { baza.unlock(bad, 'test-owner') }.message
+      )
+    end
+  end
+
+  def test_name_rejects_non_string_in_recent
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal("The name '#{bad}' is not a String", assert_raises(RuntimeError) { baza.recent(bad) }.message)
+    end
+  end
+
+  def test_name_rejects_non_string_in_durable_find
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        "The name '#{bad}' is not a String",
+        assert_raises(RuntimeError) { baza.durable_find(bad, 'remote.bin') }.message
+      )
+    end
+  end
+
+  def test_name_rejects_non_string_in_durable_place
+    baza = BazaRb::Fake.new
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'test.bin')
+      File.write(f, 'hello')
+      [42, :symbol, []].each do |bad|
+        assert_equal(
+          "The name '#{bad}' is not a String",
+          assert_raises(RuntimeError) { baza.durable_place(bad, f) }.message
+        )
+      end
+    end
+  end
+
+  def test_name_rejects_non_string_in_enter
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        "The name '#{bad}' is not a String",
+        assert_raises(RuntimeError) { baza.enter(bad, 'test-badge', 'test-reason', 42) { 'res' } }.message
+      )
+    end
+  end
+
+  def test_name_rejects_non_string_in_push
+    baza = BazaRb::Fake.new
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        "The name '#{bad}' is not a String",
+        assert_raises(RuntimeError) { baza.push(bad, 'test-data', []) }.message
+      )
+    end
+  end
 end
