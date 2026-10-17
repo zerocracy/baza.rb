@@ -1012,6 +1012,64 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Covers the out-of-range chunk rewind rejection in BazaRb#upload:
+  # when the server responds with a chunk number at or past EOF, the upload
+  # must fail with BazaRb::ServerFailure instead of seeking past EOF, sending
+  # an empty slice, and falsely reporting success.
+  def test_upload_raises_on_out_of_range_chunk_rewind
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 1_000_001)
+      received = []
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          received << request.headers['X-Zerocracy-Chunk']
+          {
+            status: 400,
+            headers: {
+              'X-Zerocracy-Flash' => 'Expecting chunk #99 (0b are here), received #0'
+            }
+          }
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      assert_match(
+        /Expecting chunk #99/,
+        assert_raises(BazaRb::ServerFailure) do
+          baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end.message
+      )
+      assert_equal(%w[0], received, 'Expected the client to fail on out-of-range rewind without empty chunk')
+    end
+  end
+
+  def test_upload_raises_on_chunk_rewind_at_eof
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 1_000_001)
+      received = []
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          received << request.headers['X-Zerocracy-Chunk']
+          {
+            status: 400,
+            headers: {
+              'X-Zerocracy-Flash' => 'Expecting chunk #2 (0b are here), received #0'
+            }
+          }
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      assert_match(
+        /Expecting chunk #2/,
+        assert_raises(BazaRb::ServerFailure) do
+          baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end.message
+      )
+      assert_equal(%w[0], received, 'Expected the client to fail on EOF chunk rewind')
+    end
+  end
+
   # Covers the `raise if rewinds > @retries` exit of the upload rescue block:
   # when the server keeps returning a matching `Expecting chunk #N` flash on
   # every PUT, the rewind loop must terminate after the rewind count exceeds
