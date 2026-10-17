@@ -39,6 +39,34 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_push_raises_when_data_is_integer
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { BazaRb::Fake.new.push('test-job', 42, []) }.message
+    )
+  end
+
+  def test_push_raises_when_data_is_array
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { BazaRb::Fake.new.push('test-job', [1, 2], []) }.message
+    )
+  end
+
+  def test_push_raises_when_data_is_symbol
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { BazaRb::Fake.new.push('test-job', :data, []) }.message
+    )
+  end
+
+  def test_push_raises_when_data_is_hash
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { BazaRb::Fake.new.push('test-job', { key: 'val' }, []) }.message
+    )
+  end
+
   def test_finished
     assert(BazaRb::Fake.new.finished?(42))
   end
