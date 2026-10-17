@@ -205,6 +205,67 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_durable_place_raises_when_file_is_nil
+    assert_equal(
+      'The "file" of the durable is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('valid-pname', nil) }.message
+    )
+  end
+
+  def test_durable_save_raises_when_file_is_nil
+    assert_equal(
+      'The "file" of the durable is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_save(42, nil) }.message
+    )
+  end
+
+  def test_durable_place_raises_on_empty_string
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('valid-pname', '') }.message
+    )
+  end
+
+  def test_durable_save_raises_on_empty_string
+    assert_equal('The file must exist', assert_raises(RuntimeError) { BazaRb::Fake.new.durable_save(42, '') }.message)
+  end
+
+  def test_durable_place_raises_on_missing_file
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('valid-pname', '/path/to/absent/file.txt') }.message
+    )
+  end
+
+  def test_durable_save_raises_on_missing_file
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_save(42, '/path/to/absent/file.txt') }.message
+    )
+  end
+
+  def test_durable_place_raises_when_file_is_empty
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'empty.bin')
+      File.write(f, '')
+      assert_equal(
+        'The file must be non-empty',
+        assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('valid-pname', f) }.message
+      )
+    end
+  end
+
+  def test_durable_save_raises_when_file_is_empty
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'empty.bin')
+      File.write(f, '')
+      assert_equal(
+        'The file must be non-empty',
+        assert_raises(RuntimeError) { BazaRb::Fake.new.durable_save(42, f) }.message
+      )
+    end
+  end
+
   def test_transfer
     assert_equal(42, BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment'))
   end
