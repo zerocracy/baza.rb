@@ -472,9 +472,11 @@ class BazaRb
   # @param [Float, BigDecimal] amount The fee amount in Ƶ (zents)
   # @param [String] summary The description/reason for the fee
   # @param [Integer] job The ID of the job this fee is for
+  # @param [String] badge Optional idempotency key; the server dedups on it,
+  #   collapsing a repeated fee into a no-op
   # @return [Integer] Receipt ID for the fee payment
   # @raise [ServerFailure] If the payment fails
-  def fee(tab, amount, summary, job)
+  def fee(tab, amount, summary, job, badge: nil)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
@@ -486,18 +488,13 @@ class BazaRb
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    raise(RuntimeError, 'The "badge" must be a String') if !badge.nil? && !badge.is_a?(String)
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
+    body = { 'amount' => amt, 'job' => job.to_s, 'summary' => summary, 'tab' => tab }
+    body['badge'] = badge unless badge.nil?
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('account').append('fee'),
-        {
-          'amount' => amt,
-          'job' => job.to_s,
-          'summary' => summary,
-          'tab' => tab
-        }
-      ).headers['X-Zerocracy-ReceiptId'].to_i
+      id = post(home.append('account').append('fee'), body).headers['X-Zerocracy-ReceiptId'].to_i
       throw(:"Fee Ƶ#{amt} paid at #{@host}")
     end
     id
