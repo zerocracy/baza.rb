@@ -474,8 +474,7 @@ class BazaRb
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
     end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
-    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
-    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    checksummary(summary)
     unless job.nil?
       raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
       raise(RuntimeError, 'The ID must be positive') unless job.positive?
@@ -511,8 +510,7 @@ class BazaRb
     raise(RuntimeError, 'The "job" is nil') if job.nil?
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
-    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
-    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    checksummary(summary)
     amt = decimal(amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
@@ -951,6 +949,16 @@ class BazaRb
       end
       throw(:"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}")
     end
+  end
+
+  # Validate a payment summary.
+  # @param [String] summary The summary to validate
+  # @raise [RuntimeError] If the summary is nil or empty
+  # @raise [ArgumentError] If the summary is not a String
+  def checksummary(summary)
+    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(ArgumentError, 'Summary must be a String') unless summary.is_a?(String)
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
   end
 
   # Format a positive payment amount without rounding it up.
