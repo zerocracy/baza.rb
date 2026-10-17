@@ -714,21 +714,70 @@ class TestBazaRbEdge < Minitest::Test
     baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
     candidates = (1..16).map { |i| "server#{i}.example.org" }
     barrier = Queue.new
+    mismatches = Queue.new
     candidates.map do |name|
       Thread.new do
         barrier.pop
         ret = Struct.new(:headers).new({ 'X-Zerocracy-Host' => name })
-        50.times { baza.__send__(:rehost, ret, baza.__send__(:home)) }
+        50.times do
+          h = URI(baza.__send__(:rehost, ret, baza.__send__(:home)).to_s).host
+          mismatches << [name, h] if h != name
+        end
       end
     end.tap do |ts|
       candidates.size.times { barrier << :go }
       ts.each(&:join)
     end
+    assert_empty(
+      mismatches,
+      "Every returned URI should match the host installed by that call, got mismatches: #{mismatches.size}"
+    )
     assert_includes(
       candidates,
       baza.instance_variable_get(:@host),
       'rehost should leave @host at one of the candidate hostnames'
     )
+  end
+
+  def test_rehost_updates_and_returns_installed_host
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    uri = baza.__send__(
+      :rehost, Struct.new(:headers).new({ 'X-Zerocracy-Host' => 'node1.example.org' }),
+      baza.__send__(:home)
+    )
+    assert_kind_of(Iri, uri)
+    assert_equal('node1.example.org', URI(uri.to_s).host)
+    assert_equal('node1.example.org', baza.instance_variable_get(:@host))
+  end
+
+  def test_rehost_ignores_nil_or_empty_headers
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    uri = baza.__send__(:rehost, Struct.new(:headers).new(nil), baza.__send__(:home))
+    assert_kind_of(Iri, uri)
+    assert_equal('example.org', URI(uri.to_s).host)
+    assert_equal('example.org', baza.instance_variable_get(:@host))
+  end
+
+  def test_rehost_chomps_trailing_dot
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    uri = baza.__send__(
+      :rehost, Struct.new(:headers).new({ 'X-Zerocracy-Host' => 'node2.example.org.' }),
+      baza.__send__(:home)
+    )
+    assert_kind_of(Iri, uri)
+    assert_equal('node2.example.org', URI(uri.to_s).host)
+    assert_equal('node2.example.org', baza.instance_variable_get(:@host))
+  end
+
+  def test_rehost_rejects_malformed_hostname
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    uri = baza.__send__(
+      :rehost, Struct.new(:headers).new({ 'X-Zerocracy-Host' => 'bad..hostname#invalid' }),
+      baza.__send__(:home)
+    )
+    assert_kind_of(Iri, uri)
+    assert_equal('example.org', URI(uri.to_s).host)
+    assert_equal('example.org', baza.instance_variable_get(:@host))
   end
 
   def test_lock_raises_when_owner_is_empty
