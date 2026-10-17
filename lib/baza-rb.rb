@@ -292,7 +292,16 @@ class BazaRb
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
     exists = false
     elapsed(@loog, level: Logger::INFO) do
-      exists = get(home.append('exists').append(pname)).body == 'yes'
+      ret = get(home.append('exists').append(pname))
+      exists =
+        case ret.body
+        when 'yes'
+          true
+        when 'no'
+          false
+        else
+          raise(RuntimeError, "Invalid response body from /exists/#{pname}: '#{ret.body}'")
+        end
       throw(:"The name #{pname.inspect} #{exists ? 'exists' : "doesn't exist"} at #{@host}")
     end
     exists
