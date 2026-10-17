@@ -469,11 +469,7 @@ class BazaRb
   def transfer(recipient, amount, summary, job: nil, badge: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
-    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
-    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
-      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
-    end
-    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
+    checkamount(amount)
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     unless job.nil?
@@ -503,11 +499,7 @@ class BazaRb
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
-    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
-    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
-      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
-    end
-    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
+    checkamount(amount)
     raise(RuntimeError, 'The "job" is nil') if job.nil?
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
@@ -951,6 +943,18 @@ class BazaRb
       end
       throw(:"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}")
     end
+  end
+
+  # Validate a payment amount.
+  # @param [Float, BigDecimal] amount The amount to validate
+  # @raise [RuntimeError] If the amount is nil, wrong type, non-finite, or not positive
+  def checkamount(amount)
+    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
+      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+    end
+    raise(RuntimeError, "The amount must be finite, but #{amount.inspect} provided") unless amount.finite?
+    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
   end
 
   # Format a positive payment amount without rounding it up.
