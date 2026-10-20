@@ -36,11 +36,15 @@ class BazaRb::Fake
   # @param [Array<String>] meta List of metadata strings to attach to the job
   # @param [Integer] chunk_size Size of each chunk in bytes (accepted for signature parity with BazaRb#push)
   # @return [Integer] Always returns 42 as the fake job ID
+  # @raise [ArgumentError] If any metadata item is not a String
   def push(name, data, meta, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
     checkname(name)
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The data must be non-empty') if data.empty?
     raise(RuntimeError, 'The meta must be an array') unless meta.is_a?(Array)
+    meta.each_with_index do |item, index|
+      raise(ArgumentError, "The \"meta\" item at index #{index} must be a String") unless item.is_a?(String)
+    end
     42
   end
 

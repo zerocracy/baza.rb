@@ -109,6 +109,7 @@ class BazaRb
   # @param [Array<String>] meta List of metadata strings to attach to the job
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the push operation fails
+  # @raise [ArgumentError] If any metadata item is not a String
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
     raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
@@ -118,6 +119,9 @@ class BazaRb
     raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
     raise(RuntimeError, 'The "meta" of the job must be an Array') unless meta.is_a?(Array)
+    meta.each_with_index do |item, index|
+      raise(ArgumentError, "The \"meta\" item at index #{index} must be a String") unless item.is_a?(String)
+    end
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         File.binwrite(file.path, data)
