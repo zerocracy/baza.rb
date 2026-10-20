@@ -1086,6 +1086,50 @@ class TestBazaRbEdge < Minitest::Test
     assert_requested(:post, 'https://example.org:443/valves', times: 2)
   end
 
+  def test_enter_without_job_when_not_cached
+    WebMock.disable_net_connect!
+    csrf = 'swordfish'
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge').to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(status: 200, body: csrf)
+    stub_request(:post, 'https://example.org:443/valves')
+      .with(
+        body: {
+          '_csrf' => csrf,
+          'badge' => 'test-badge',
+          'pname' => 'test',
+          'result' => 'computed',
+          'why' => 'testing'
+        }
+      )
+      .to_return(status: 302)
+    called = 0
+    baza = fake_baza
+    assert_equal(
+      'computed',
+      baza.enter('test', 'test-badge', 'testing') do
+        called += 1
+        'computed'
+      end
+    )
+    assert_equal(1, called)
+    assert_requested(:post, 'https://example.org:443/valves', times: 1)
+  end
+
+  def test_enter_without_job_when_cached
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge').to_return(status: 200, body: 'cached')
+    called = 0
+    assert_equal(
+      'cached',
+      fake_baza.enter('test', 'test-badge', 'testing') do
+        called += 1
+        'computed'
+      end
+    )
+    assert_equal(0, called)
+    assert_not_requested(:post, 'https://example.org:443/valves')
+  end
+
   private
 
   def with_sinatra
