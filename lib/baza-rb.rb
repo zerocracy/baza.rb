@@ -522,7 +522,7 @@ class BazaRb
     raise(RuntimeError, 'The "badge" is nil') if badge.nil?
     raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?
     raise(RuntimeError, 'The "why" is nil') if why.nil?
-    raise(RuntimeError, 'The "why" may not be empty') if why.empty?
+    raise(RuntimeError, 'The "why" may not be empty') if why.strip.empty?
     raise(RuntimeError, 'The "job" must be an Integer') unless job.nil? || job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.nil? || job.positive?
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
