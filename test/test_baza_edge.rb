@@ -798,6 +798,13 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_transfer_raises_when_summary_is_whitespace
+    assert_equal(
+      'The summary "  \\t  " is empty',
+      assert_raises(RuntimeError) { fake_baza.transfer('jeff', 1.0, "  \t  ") }.message
+    )
+  end
+
   def test_transfer_raises_when_job_is_invalid
     [['1', 'The ID must be an Integer'], [0, 'The ID must be positive']].each do |job, message|
       assert_equal(message, assert_raises(RuntimeError) { fake_baza.transfer('jeff', 1.0, 'pay', job:) }.message)
@@ -817,6 +824,13 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal(
       'The summary "" is empty',
       assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    )
+  end
+
+  def test_fee_raises_when_summary_is_whitespace
+    assert_equal(
+      'The summary "  \\t  " is empty',
+      assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, "  \t  ", 42) }.message
     )
   end
 
