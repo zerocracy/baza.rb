@@ -247,7 +247,7 @@ class BazaRb::Fake
   # @param [nil|Integer] job Optional job ID to associate with this valve
   # @yield Block that computes the result
   # @return [String] Always executes and returns the block's result
-  def enter(name, badge, why, job)
+  def enter(name, badge, why, job = nil)
     checkname(name, 'The "pname"')
     raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
     raise(RuntimeError, 'The reason cannot be empty') if why.empty?
