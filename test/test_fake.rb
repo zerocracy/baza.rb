@@ -28,6 +28,20 @@ class TestFake < Minitest::Test
     assert_equal(42, BazaRb::Fake.new.push('test-job', 'test-data', []))
   end
 
+  def test_push_rejects_non_string_meta_at_index_zero
+    assert_equal(
+      'The "meta" item at index 0 must be a String',
+      assert_raises(ArgumentError) { BazaRb::Fake.new.push('test-job', 'test-data', [123]) }.message
+    )
+  end
+
+  def test_push_rejects_non_string_meta_after_string
+    assert_equal(
+      'The "meta" item at index 1 must be a String',
+      assert_raises(ArgumentError) { BazaRb::Fake.new.push('test-job', 'test-data', ['valid', nil]) }.message
+    )
+  end
+
   def test_push_accepts_chunk_size_kwarg
     assert_equal(42, BazaRb::Fake.new.push('test-job', 'test-data', [], chunk_size: 1024))
   end
