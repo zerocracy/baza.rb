@@ -454,6 +454,7 @@ class BazaRb
       raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
       raise(RuntimeError, 'The ID must be positive') unless job.positive?
     end
+    checkbadge(badge)
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
     body = { 'human' => recipient, 'amount' => amt, 'summary' => summary }
@@ -553,6 +554,15 @@ class BazaRb
   end
 
   private
+
+  # Validate the optional transfer badge type.
+  #
+  # @param [String, nil] badge Optional idempotency key
+  # @return [void]
+  # @raise [RuntimeError] If badge is not a String
+  def checkbadge(badge)
+    raise(RuntimeError, 'The "badge" must be a String') if !badge.nil? && !badge.is_a?(String)
+  end
 
   # Calculate exponential backoff in seconds for a given attempt number.
   #

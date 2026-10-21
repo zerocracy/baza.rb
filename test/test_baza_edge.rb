@@ -832,6 +832,32 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_transfer_rejects_non_string_badge
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(status: 200, body: 'token')
+    stub_request(:post, 'https://example.org/account/transfer').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    assert_equal(
+      'The "badge" must be a String',
+      assert_raises(RuntimeError) { fake_baza(compress: false).transfer('jeff', 1.0, 'pay', badge: 42) }.message
+    )
+    assert_not_requested(:get, 'https://example.org/csrf')
+    assert_not_requested(:post, 'https://example.org/account/transfer')
+  end
+
+  def test_transfer_sends_empty_string_badge
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(status: 200, body: 'token')
+    stub_request(:post, 'https://example.org/account/transfer').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
+    )
+    assert_equal(7, fake_baza(compress: false).transfer('jeff', 1.0, 'pay', badge: ''))
+    assert_requested(:post, 'https://example.org/account/transfer') do |req|
+      req.body.include?('badge=')
+    end
+  end
+
   def test_transfer_sends_badge
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
