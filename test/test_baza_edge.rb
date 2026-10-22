@@ -471,6 +471,69 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#468: the existing destination was deleted
+  # before the request succeeded, so a timeout destroyed the previous file.
+  def test_download_keeps_existing_file_on_timeout
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      File.binwrite(file, 'old content')
+      stub_request(:get, 'https://example.org:443/file').with(headers: { 'Range' => 'bytes=0-' }).to_timeout
+      baza = BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, timeout: 0.1, retries: 0, pause: 0
+      )
+      assert_raises(BazaRb::TimedOut) do
+        baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      end
+      assert_equal('old content', File.binread(file), 'the old file must stay intact')
+      assert_equal(['download.txt'], Dir.children(dir), 'no temporary file may be left behind')
+    end
+  end
+
+  # Reproduces zerocracy/baza.rb#468: a failure after a successful ranged
+  # chunk must not replace or truncate the pre-existing destination.
+  def test_download_keeps_file_when_later_chunk_fails
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      File.binwrite(file, 'old content')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'first ', headers: { 'Content-Range' => 'bytes 0-5/20' })
+      stub_request(:get, 'https://example.org:443/file').with(headers: { 'Range' => 'bytes=6-' }).to_timeout
+      baza = BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, timeout: 0.1, retries: 0, pause: 0
+      )
+      assert_raises(BazaRb::TimedOut) do
+        baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      end
+      assert_equal('old content', File.binread(file), 'the old file must stay intact')
+      assert_equal(['download.txt'], Dir.children(dir), 'no temporary file may be left behind')
+    end
+  end
+
+  # Reproduces zerocracy/baza.rb#468: a successful download must replace the
+  # destination atomically and leave no temporary file behind.
+  def test_download_replaces_existing_file_on_success
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      File.binwrite(file, 'old content')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 200, body: 'new content', headers: {})
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+      assert_nil(
+        baza.__send__(:download, baza.__send__(:home).append('file'), file),
+        'download must keep returning nil'
+      )
+      assert_equal('new content', File.binread(file), 'the destination must be replaced')
+      assert_equal(['download.txt'], Dir.children(dir), 'no temporary file may be left behind')
+    end
+  end
+
   # Reproduces zerocracy/baza.rb#303: BazaRb#enter wrapped the GET cache check,
   # the user block, and the POST in a single retry region. When the POST timed
   # out, the outer retry re-entered the whole block and ran the user's yield
