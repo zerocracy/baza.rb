@@ -60,7 +60,7 @@ class BazaRb
   # @param [Boolean] ssl Whether to use SSL/HTTPS (default: true)
   # @param [Float] timeout Connection and request timeout in seconds (default: 30)
   # @param [Integer] retries Number of retries on connection failure (default: 5)
-  # @param [Integer] pause The factor on pause (<1 means faster, >1 means slower)
+  # @param [Float] pause The factor on pause (<1 means faster, >1 means slower)
   # @param [Loog] loog The logging facility (default: Loog::NULL)
   # @param [Boolean] compress Whether to use GZIP compression for requests/responses (default: true)
   def initialize(host, port, token, ssl: true, timeout: 30, retries: 5, pause: 1, loog: Loog::NULL, compress: true)
@@ -71,7 +71,7 @@ class BazaRb
     @timeout = timeout
     @loog = loog
     @retries = retries
-    @pause = ENV.fetch('BAZA_BACKOFF', pause).to_i
+    @pause = Float(ENV.fetch('BAZA_BACKOFF', pause))
     @compress = compress
     @mutex = Mutex.new
   end
@@ -557,9 +557,9 @@ class BazaRb
   # Calculate exponential backoff in seconds for a given attempt number.
   #
   # @param [Integer] attempt The attempt number (1-based)
-  # @return [Integer] The number of seconds to sleep
+  # @return [Float] The number of seconds to sleep
   def backoff(attempt)
-    @pause * (2**attempt)
+    @pause.to_f * (2**attempt)
   end
 
   # Stick host from X-Zerocracy-Host header if present.
