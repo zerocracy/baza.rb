@@ -93,10 +93,12 @@ class BazaRb
   #
   # @return [Float] The balance in zents (Ƶ), where 1 Ƶ = 1 USDT
   # @raise [ServerFailure] If authentication fails or server returns an error
+  # @raise [RuntimeError] If the server returns a malformed or non-finite balance
   def balance
     z = nil
     elapsed(@loog, level: Logger::INFO) do
-      z = get(home.append('account').append('balance')).body.to_f
+      z = Float(get(home.append('account').append('balance')).body, exception: false)
+      raise(RuntimeError, 'invalid balance response from /account/balance: expected a finite number') unless z&.finite?
       throw(:"The balance is Ƶ#{z}, at #{@host}")
     end
     z
