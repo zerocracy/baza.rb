@@ -753,6 +753,115 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_rejects_content_range_ending_with_digits
+    WebMock.disable_net_connect!
+    baza = client(8080)
+    ['abc123', 'foo-1', 'bad 42'].each do |total|
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'download.txt')
+        stub_request(:get, 'http://127.0.0.1:8080/file')
+          .with(headers: { 'Range' => 'bytes=0-' })
+          .to_return(status: 206, body: 'chunk', headers: { 'Content-Range' => "bytes 0-4/#{total}" })
+        assert_includes(
+          assert_raises(RuntimeError) do
+            baza.__send__(:download, baza.__send__(:home).append('file'), file)
+          end.message,
+          "Total size is not valid (#{total.inspect})"
+        )
+      end
+    end
+  ensure
+    WebMock.allow_net_connect!
+  end
+
+  def test_rejects_other_invalid_totals
+    WebMock.disable_net_connect!
+    baza = client(8080)
+    ['*malformed', '-5', '0xff', '12 34', "100\n"].each do |total|
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'download.txt')
+        stub_request(:get, 'http://127.0.0.1:8080/file')
+          .with(headers: { 'Range' => 'bytes=0-' })
+          .to_return(status: 206, body: 'chunk', headers: { 'Content-Range' => "bytes 0-4/#{total}" })
+        assert_includes(
+          assert_raises(RuntimeError) do
+            baza.__send__(:download, baza.__send__(:home).append('file'), file)
+          end.message,
+          "Total size is not valid (#{total.inspect})"
+        )
+      end
+    end
+  ensure
+    WebMock.allow_net_connect!
+  end
+
+  def test_accepts_content_range_with_asterisk
+    WebMock.disable_net_connect!
+    baza = client(8080)
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'http://127.0.0.1:8080/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'hello', headers: { 'Content-Range' => 'bytes 0-4/*' })
+      stub_request(:get, 'http://127.0.0.1:8080/file')
+        .with(headers: { 'Range' => 'bytes=5-' })
+        .to_return(status: 200, body: 'world')
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      assert_equal('helloworld', File.read(file))
+    end
+  ensure
+    WebMock.allow_net_connect!
+  end
+
+  def test_accepts_content_range_with_integer_total
+    WebMock.disable_net_connect!
+    baza = client(8080)
+    cases = [
+      { total: '0', range: '0-0', body: '', expected: '' },
+      { total: '1024', range: '0-1023', body: 'x' * 1024, expected: 'x' * 1024 },
+      { total: '99999', range: '0-99998', body: 'done', expected: 'done' }
+    ]
+    cases.each do |c|
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'download.txt')
+        stub_request(:get, 'http://127.0.0.1:8080/file')
+          .with(headers: { 'Range' => 'bytes=0-' })
+          .to_return(status: 206, body: c[:body], headers: { 'Content-Range' => "bytes #{c[:range]}/#{c[:total]}" })
+        baza.__send__(:download, baza.__send__(:home).append('file'), file)
+        assert_equal(c[:expected], File.read(file))
+      end
+    end
+  ensure
+    WebMock.allow_net_connect!
+  end
+
+  def test_rejects_malformed_content_range_headers
+    WebMock.disable_net_connect!
+    baza = client(8080)
+    [
+      { headers: {}, error: 'Content-Range header is missing' },
+      { headers: { 'Content-Range' => 'invalid-header' }, error: 'Content-Range is not valid' },
+      { headers: { 'Content-Range' => 'bytes 0-10' }, error: 'Content-Range is not valid' },
+      { headers: { 'Content-Range' => 'bytes 0/100' }, error: 'Range is not valid' },
+      { headers: { 'Content-Range' => 'bytes 0-abc/100' }, error: 'Range is not valid' }
+    ].each do |c|
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'download.txt')
+        stub_request(:get, 'http://127.0.0.1:8080/file')
+          .with(headers: { 'Range' => 'bytes=0-' })
+          .to_return(status: 206, body: 'x', headers: c[:headers])
+        assert_includes(
+          assert_raises(RuntimeError) do
+            baza.__send__(:download, baza.__send__(:home).append('file'), file)
+          end.message,
+          c[:error]
+        )
+      end
+    end
+  ensure
+    WebMock.allow_net_connect!
+  end
+
   private
 
   def client(port, pause: 1)

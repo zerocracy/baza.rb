@@ -840,7 +840,7 @@ class BazaRb
   def crange(headers)
     crange = headers['Content-Range']
     raise(RuntimeError, 'Content-Range header is missing') if crange.nil?
-    _, value = crange.split
+    _, value = crange.split(' ', 2)
     raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if value.nil?
     range, total = value.split('/', 2)
     raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if total.nil?
