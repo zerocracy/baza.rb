@@ -902,6 +902,7 @@ class BazaRb
           rewinds += 1
           raise if rewinds > @retries
           target = match[1].to_i
+          raise if chunk_size * target >= total
           @loog.info(
             "Server lost upload state at chunk ##{chunk}, " \
             "restarting from chunk ##{target} (rewind no.#{rewinds})"
@@ -917,8 +918,7 @@ class BazaRb
             "PUT #{uri.to_uri.path} #{ret.code}",
             ("gzipped #{slice.bytesize} bytes" if params[:headers]['Content-Encoding'] == 'gzip'),
             "sent #{params[:body].bytesize} bytes",
-            ("chunk ##{chunk}" if params[:headers]['X-Zerocracy-Chunk']),
-            ('no chunks' unless params[:headers]['X-Zerocracy-Chunk'])
+            params[:headers]['X-Zerocracy-Chunk'] ? "chunk ##{chunk}" : 'no chunks'
           ].compact.join(', ')
         )
         break if slice.empty?
