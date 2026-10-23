@@ -753,9 +753,181 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_durable_place_closes_file
+    interaction
+      .upon_receiving('a request for CSRF token for durable place')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^.+$/, 'swordfish'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact15' })
+      .upon_receiving('a durable place request')
+      .with_request(
+        method: 'POST',
+        path: '/durable-place'
+      )
+      .will_respond_with(
+        status: 302,
+        headers: { 'X-Zerocracy-DurableId' => match_regex(/^[1-9][0-9]*$/, '42') }
+      )
+    execute do |server|
+      baza = client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'test.bin')
+        File.binwrite(file, 'hello')
+        opened =
+          spy(file) do
+            assert_equal(42, baza.durable_place('pact15', file))
+          end
+        refute_empty(opened)
+        assert(opened.all?(&:closed?))
+      end
+    end
+  end
+
+  def test_durable_place_closes_file_on_error
+    interaction
+      .upon_receiving('a request for CSRF token for failed durable place')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^.+$/, 'swordfish'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact16' })
+      .upon_receiving('a durable place request that fails')
+      .with_request(
+        method: 'POST',
+        path: '/durable-place'
+      )
+      .will_respond_with(status: 500)
+    execute do |server|
+      baza = client(server.port, pause: 0)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'test.bin')
+        File.binwrite(file, 'hello')
+        opened = []
+        assert_raises(BazaRb::ServerFailure) do
+          spy(file) do |files|
+            opened = files
+            baza.durable_place('pact16', file)
+          end
+        end
+        refute_empty(opened)
+        assert(opened.all?(&:closed?))
+      end
+    end
+  end
+
+  def test_upload_closes_file
+    body = 'small payload'
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact17' })
+      .given('durable exists', { 'id' => 428, 'file' => 'upload.txt', 'pname' => 'pact17' })
+      .given('durable is locked', { 'id' => 428, 'owner' => 'owner' })
+      .upon_receiving('a durable save request for upload test')
+      .with_request(
+        method: 'PUT',
+        body:,
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/428'),
+        headers: {
+          'Content-Length' => match_regex(/^[0-9]+$/, body.bytesize.to_s),
+          'Content-Type' => 'application/octet-stream'
+        }
+      )
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^.+$/, 'saved'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    execute do |server|
+      baza = client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'upload.txt')
+        File.binwrite(file, body)
+        opened =
+          spy(file) do
+            baza.durable_save(428, file)
+          end
+        refute_empty(opened)
+        assert(opened.all?(&:closed?))
+      end
+    end
+  end
+
+  def test_upload_closes_file_on_error
+    body = 'payload to fail'
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact18' })
+      .given('durable exists', { 'id' => 429, 'file' => 'fail.txt', 'pname' => 'pact18' })
+      .given('durable is locked', { 'id' => 429, 'owner' => 'owner' })
+      .upon_receiving('a durable save request that fails')
+      .with_request(
+        method: 'PUT',
+        body:,
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/429'),
+        headers: {
+          'Content-Length' => match_regex(/^[0-9]+$/, body.bytesize.to_s),
+          'Content-Type' => 'application/octet-stream'
+        }
+      )
+      .will_respond_with(status: 500)
+    execute do |server|
+      baza = client(server.port, pause: 0)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'upload_fail.txt')
+        File.binwrite(file, body)
+        opened = []
+        assert_raises(BazaRb::ServerFailure) do
+          spy(file) do |files|
+            opened = files
+            baza.durable_save(429, file)
+          end
+        end
+        refute_empty(opened)
+        assert(opened.all?(&:closed?))
+      end
+    end
+  end
+
   private
 
   def client(port, pause: 1)
     BazaRb.new('127.0.0.1', port, '000', ssl: false, loog: Loog::NULL, compress: false, pause:)
+  end
+
+  def spy(target_file)
+    captured = []
+    orig = File.method(:open)
+    File.singleton_class.define_method(:open) do |*args, &blk|
+      if args.first == target_file
+        if blk
+          orig.call(*args) do |f|
+            captured << f
+            blk.call(f)
+          end
+        else
+          f = orig.call(*args)
+          captured << f
+          f
+        end
+      else
+        orig.call(*args, &blk)
+      end
+    end
+    begin
+      yield(captured)
+    ensure
+      File.singleton_class.define_method(:open, orig)
+    end
+    captured
   end
 end
