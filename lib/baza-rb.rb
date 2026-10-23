@@ -765,8 +765,9 @@ class BazaRb
   # @raise [ServerFailure] If the download fails
   def download(uri, file)
     FileUtils.mkdir_p(File.dirname(file))
-    FileUtils.rm_f(file)
-    FileUtils.touch(file)
+    part = "#{file}.part"
+    FileUtils.rm_f(part)
+    FileUtils.touch(part)
     chunk = 0
     blanks = [204, 302]
     elapsed(@loog, level: Logger::INFO) do
@@ -783,7 +784,7 @@ class BazaRb
                   headers: headers.merge(
                     'Accept' => '*/*',
                     'Accept-Encoding' => 'gzip',
-                    'Range' => "bytes=#{File.size(file)}-"
+                    'Range' => "bytes=#{File.size(part)}-"
                   ),
                   connecttimeout: @timeout,
                   timeout: @timeout
@@ -817,8 +818,8 @@ class BazaRb
             raise(BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})")
           end
         end
-        File.open(file, 'ab') do |f|
-          msg << "added to existing #{File.size(file)} bytes"
+        File.open(part, 'ab') do |f|
+          msg << "added to existing #{File.size(part)} bytes"
           f.write(slice)
         end
         @loog.debug(msg.compact.join(', '))
@@ -833,8 +834,12 @@ class BazaRb
         chunk += 1
         sleep(1) if rheaders['Content-Length'].to_i.zero?
       end
-      throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
+      throw(:"Downloaded #{File.size(part)} bytes in #{chunk + 1} chunks from #{uri}")
     end
+    File.rename(part, file)
+    nil
+  ensure
+    FileUtils.rm_f(part) if part
   end
 
   def crange(headers)
