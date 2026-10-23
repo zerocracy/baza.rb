@@ -410,6 +410,8 @@ class BazaRb
   # @param [String] pname The name of the job
   # @param [String] file The file name
   # @return [Integer, nil] The ID of the durable if found, nil if not found
+  # @raise [RuntimeError] If the server returns an invalid durable ID response
+  # @raise [ServerFailure] If the server returns an unexpected response status
   def durable_find(pname, file)
     raise(RuntimeError, 'The "pname" is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
@@ -421,7 +423,15 @@ class BazaRb
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('durable-find').add(file:, pname:), [200, 404])
       if ret.code == 200
-        id = ret.body.to_i
+        body = ret.body.to_s.b
+        unless body.match?(/\A[1-9][0-9]*\z/)
+          raise(
+            RuntimeError,
+            'Invalid durable ID response at GET /durable-find with HTTP 200: ' \
+            "#{body.inspect} (expected a positive decimal ID)"
+          )
+        end
+        id = Integer(body, 10)
         throw(:"Found durable ##{id} for job \"#{pname}\" file \"#{file}\" at #{@host}")
       else
         throw(:"Durable not found for job \"#{pname}\" file \"#{file}\" at #{@host}")
