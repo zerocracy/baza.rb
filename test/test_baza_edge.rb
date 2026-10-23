@@ -856,6 +856,48 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_fee_sends_badge
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/fee').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '9' }
+    )
+    assert_equal(9, fake_baza(compress: false).fee('unknown', 1.0, 'fee summary', 42, badge: 'fee-badge-123'))
+    assert_requested(:post, 'https://example.org/account/fee') do |req|
+      req.body.include?('badge=fee-badge-123')
+    end
+  end
+
+  def test_fee_omits_badge_when_nil
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/fee').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '9' }
+    )
+    assert_equal(9, fake_baza(compress: false).fee('unknown', 1.0, 'fee summary', 42))
+    assert_requested(:post, 'https://example.org/account/fee') do |req|
+      !req.body.include?('badge=')
+    end
+  end
+
+  def test_fee_raises_when_badge_is_not_string
+    assert_equal(
+      'The "badge" must be a String',
+      assert_raises(RuntimeError) do
+        fake_baza.fee('unknown', 1.0, 'fee summary', 42, badge: 123)
+      end.message
+    )
+  end
+
+  def test_real_fee_raises_when_badge_is_not_string
+    assert_equal(
+      'The "badge" must be a String',
+      assert_raises(RuntimeError) do
+        BazaRb.new('example.org', 443, '000').fee('unknown', 1.0, 'fee summary', 42, badge: 123)
+      end.message
+    )
+  end
+
   def test_fee_raises_when_job_is_not_positive
     assert_equal(
       'The "job" must be positive',
