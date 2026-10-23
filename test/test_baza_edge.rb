@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026 Zerocracy
 # SPDX-License-Identifier: MIT
 
+require 'digest'
 require 'factbase'
 require 'loog'
 require 'net/http'
@@ -322,6 +323,53 @@ class TestBazaRbEdge < Minitest::Test
       assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, bomb.string) }.message,
       'exceeds limit'
     )
+  end
+
+  def test_unzip_reads_concatenated_members
+    members = ["\x00\xFF\x7F".b, ''.b, Random.new(496).bytes(65_536)]
+    assert_equal(members.join, fake_baza.__send__(:unzip, members.map { |member| gzip(member) }.join).b)
+  end
+
+  def test_durable_load_reads_concatenated_members
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.bin')
+      stub_request(:get, 'https://example.org:443/durables/42').to_return(
+        status: 200,
+        body: gzip('first'.b) + gzip('second'.b),
+        headers: { 'Content-Encoding' => 'gzip' }
+      )
+      fake_baza.durable_load(42, file)
+      assert_equal('firstsecond', File.binread(file))
+    end
+  end
+
+  def test_unzip_rejects_combined_members_over_limit
+    half = BazaRb::LIMIT_UNCOMPRESSED / 2
+    compressed = [gzip('a' * half), gzip('b' * (half + 1))].join
+    assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, compressed) }
+  end
+
+  def test_unzip_accepts_concatenated_members_at_limit
+    first = 'a' * (BazaRb::LIMIT_UNCOMPRESSED / 2)
+    second = 'b' * (BazaRb::LIMIT_UNCOMPRESSED - first.bytesize)
+    expected = first + second
+    actual = fake_baza.__send__(:unzip, gzip(first) + gzip(second))
+    assert_equal(expected.bytesize, actual.bytesize)
+    assert_equal(Digest::SHA256.hexdigest(expected), Digest::SHA256.hexdigest(actual))
+  end
+
+  def test_unzip_rejects_truncated_later_member
+    compressed = gzip('first') + gzip('second')
+    truncated = compressed.byteslice(0, compressed.bytesize - 4)
+    assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, truncated) }
+  end
+
+  def test_unzip_rejects_corrupt_crc_in_later_member
+    corrupted = gzip('first') + gzip('second')
+    pos = corrupted.bytesize - 8
+    corrupted.setbyte(pos, corrupted.getbyte(pos) ^ 0x01)
+    assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, corrupted) }
   end
 
   def test_checked_with_internal_error
@@ -1087,6 +1135,14 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   private
+
+  def gzip(data)
+    output = StringIO.new(''.b)
+    writer = Zlib::GzipWriter.new(output)
+    writer.write(data)
+    writer.close
+    output.string
+  end
 
   def with_sinatra
     Dir.mktmpdir do |dir|
