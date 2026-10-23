@@ -324,6 +324,45 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_unzip_damaged_deflate_block
+    io = StringIO.new
+    gz = Zlib::GzipWriter.new(io)
+    gz.write('test data to compress' * 10)
+    gz.close
+    broken = io.string.dup
+    broken.setbyte(10, 0xff)
+    err = assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, broken) }
+    assert_includes(err.message, 'Failed to unzip')
+    assert_instance_of(Zlib::DataError, err.cause)
+  end
+
+  def test_unzip_corrupted_deflate_stream
+    io = StringIO.new
+    gz = Zlib::GzipWriter.new(io)
+    gz.write('another payload of text for compression testing' * 20)
+    gz.close
+    broken = io.string.dup
+    broken.setbyte(15, 0xff)
+    err = assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, broken) }
+    assert_includes(err.message, 'Failed to unzip')
+    assert_instance_of(Zlib::DataError, err.cause)
+  end
+
+  def test_unzip_invalid_gzip_header
+    err = assert_raises(BazaRb::BadCompression) { fake_baza.__send__(:unzip, 'not a gzip file at all') }
+    assert_includes(err.message, 'Failed to unzip')
+    assert_kind_of(Zlib::GzipFile::Error, err.cause)
+  end
+
+  def test_unzip_valid_gzip_roundtrip
+    original = 'hello world, this is a test string for compression'
+    io = StringIO.new
+    gz = Zlib::GzipWriter.new(io)
+    gz.write(original)
+    gz.close
+    assert_equal(original, fake_baza.__send__(:unzip, io.string))
+  end
+
   def test_checked_with_internal_error
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
