@@ -625,7 +625,13 @@ class BazaRb
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
   def attempt(&)
-    with_retries(max_tries: @retries + 1, rescue: TimedOut, &)
+    with_retries(
+      max_tries: @retries + 1,
+      base_sleep_seconds: @pause,
+      max_sleep_seconds: [@pause * (2**@retries), @pause].max,
+      rescue: TimedOut,
+      &
+    )
   end
 
   # Retry the HTTP request on rate-limiting (429) and server errors (>= 499).
