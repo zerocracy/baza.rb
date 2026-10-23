@@ -49,6 +49,28 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+<<<<<<< 349-durable-place-io
+  def test_durable_place_closes_zip
+    WebMock.disable_net_connect!
+    baza = fake_baza(compress: false)
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/durable-place').to_return(
+      status: 302, headers: { 'X-Zerocracy-DurableId' => '7' }
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'tiny.bin')
+      File.binwrite(file, 'x')
+      assert_equal(7, baza.durable_place('simple', file))
+      leaked =
+        ObjectSpace.each_object(File).select do |f|
+          next false if f.closed?
+          f.path == file
+        rescue IOError
+          false
+        end
+      assert_empty(leaked, "durable_place left #{leaked.size} open IO(s) for #{file}")
+    end
+=======
   def test_durable_place_raises_when_pname_is_invalid
     assert_includes(
       assert_raises(RuntimeError) { fake_baza.durable_place('INVALID', '/tmp/x') }.message,
@@ -65,6 +87,7 @@ class TestBazaRbEdge < Minitest::Test
 
   def test_durable_find_raises_when_pname_is_invalid
     assert_includes(assert_raises(RuntimeError) { fake_baza.durable_find('BAD!', 'file') }.message, 'is not valid')
+>>>>>>> master
   end
 
   def test_real_http
