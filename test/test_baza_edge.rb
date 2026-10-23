@@ -813,6 +813,13 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_fee_raises_when_tab_is_whitespace
+    assert_equal(
+      'The tab "  \\t  " is empty',
+      assert_raises(RuntimeError) { fake_baza.fee("  \t  ", 1.0, 'pay', 42) }.message
+    )
+  end
+
   def test_fee_raises_when_summary_is_empty
     assert_equal(
       'The summary "" is empty',
