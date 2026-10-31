@@ -313,6 +313,26 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_durable_load_decodes_uppercase_gzip
+    with_gzip('GZIP')
+  end
+
+  def test_durable_load_decodes_mixed_case_gzip
+    with_gzip('GZip')
+  end
+
+  def test_durable_load_decodes_lowercase_gzip
+    with_gzip('gzip')
+  end
+
+  def test_durable_load_without_encoding
+    with_plain({})
+  end
+
+  def test_durable_load_with_other_encoding
+    with_plain('Content-Encoding' => 'br')
+  end
+
   def test_unzip_rejects_compression_bomb
     bomb = StringIO.new
     gz = Zlib::GzipWriter.new(bomb)
@@ -1087,6 +1107,38 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   private
+
+  def with_gzip(coding)
+    WebMock.disable_net_connect!
+    payload = "durable payload\x00\xFF".b
+    stream = StringIO.new
+    writer = Zlib::GzipWriter.new(stream)
+    writer.write(payload)
+    writer.close
+    stub_request(:get, 'https://example.org:443/durables/517').to_return(
+      status: 200,
+      body: stream.string,
+      headers: { 'Content-Encoding' => coding }
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.bin')
+      fake_baza.durable_load(517, file)
+      assert_equal(payload, File.binread(file))
+    end
+  end
+
+  def with_plain(response_headers)
+    WebMock.disable_net_connect!
+    payload = "plain durable payload\x00\xFF".b
+    stub_request(:get, 'https://example.org:443/durables/518').to_return(
+      status: 200, body: payload, headers: response_headers
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.bin')
+      fake_baza.durable_load(518, file)
+      assert_equal(payload, File.binread(file))
+    end
+  end
 
   def with_sinatra
     Dir.mktmpdir do |dir|
