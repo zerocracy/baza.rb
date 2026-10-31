@@ -209,7 +209,7 @@ class BazaRb::Fake
     end
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
-    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.strip.empty?
     checkid(job) unless job.nil?
     raise(RuntimeError, 'The "badge" must be a String') if !badge.nil? && !badge.is_a?(String)
     42
@@ -233,6 +233,7 @@ class BazaRb::Fake
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.strip.empty?
     42
   end
 
