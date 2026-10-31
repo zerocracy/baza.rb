@@ -308,6 +308,29 @@ class TestFake < Minitest::Test
     assert_equal('test-result', BazaRb::Fake.new.enter('test-job', 'test-badge', 'test-reason', 42) { 'test-result' })
   end
 
+  def test_enter_accepts_dotted_badge
+    called = false
+    assert_equal(
+      'test-result',
+      BazaRb::Fake.new.enter('test-job', 'bar.v1', 'test-reason', 42) do
+        called = true
+        'test-result'
+      end
+    )
+    assert(called)
+  end
+
+  def test_enter_rejects_badge_with_slash
+    assert_equal(
+      "The badge 'bar/v1' is not valid",
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.enter(
+          'test-job', 'bar/v1', 'test-reason', 42
+        ) { 'ignored' }
+      end.message
+    )
+  end
+
   def test_enter_rejects_multiline_name_and_badge
     baza = BazaRb::Fake.new
     assert_equal(
