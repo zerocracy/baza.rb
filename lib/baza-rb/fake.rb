@@ -207,6 +207,7 @@ class BazaRb::Fake
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
     end
+    raise(RuntimeError, "The amount must be finite, but #{amount.inspect} provided") unless amount.finite?
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
@@ -228,6 +229,7 @@ class BazaRb::Fake
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
     end
+    raise(RuntimeError, "The amount must be finite, but #{amount.inspect} provided") unless amount.finite?
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "job" is nil') if job.nil?
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
