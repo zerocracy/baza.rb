@@ -1086,6 +1086,36 @@ class TestBazaRbEdge < Minitest::Test
     assert_requested(:post, 'https://example.org:443/valves', times: 2)
   end
 
+  def test_post_csrf_timeout_does_not_multiply_retries
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_timeout
+    assert_raises(BazaRb::TimedOut) do
+      BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0
+      ).lock('simple', 'owner')
+    end
+    assert_requested(:get, 'https://example.org:443/csrf', times: 3)
+  end
+
+  def test_post_includes_csrf_token_in_body
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token-xyz')
+    payload = nil
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return do |req|
+        payload = req.body
+        { status: 302, body: '' }
+      end
+    BazaRb.new(
+      'example.org', 443, '000',
+      loog: Loog::NULL, compress: false, timeout: 0.1, retries: 1, pause: 0
+    ).lock('simple', 'owner')
+    refute_nil(payload)
+    assert_includes(payload, '_csrf=token-xyz')
+    assert_includes(payload, 'owner=owner')
+  end
+
   private
 
   def with_sinatra
