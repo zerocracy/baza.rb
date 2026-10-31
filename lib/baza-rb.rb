@@ -17,6 +17,7 @@ require 'tempfile'
 require 'typhoeus'
 require 'zlib'
 require_relative 'baza-rb/compress'
+require_relative 'baza-rb/validation'
 require_relative 'baza-rb/version'
 
 # Ruby client for the Zerocracy API.
@@ -37,6 +38,10 @@ class BazaRb
   DEFAULT_CHUNK_SIZE = 1_000_000
 
   include Compress
+  include Validation
+
+  # When an invalid argument is provided.
+  class ValidationError < RuntimeError; end
 
   # When the server failed (503).
   class ServerFailure < StandardError; end
@@ -110,14 +115,9 @@ class BazaRb
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the push operation fails
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
-    raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
-    raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
-    raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
-    raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
-    raise(RuntimeError, 'The "meta" of the job must be an Array') unless meta.is_a?(Array)
+    valname(pname, context: 'name')
+    valdata(data)
+    valarray(meta, context: 'meta')
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         File.binwrite(file.path, data)
@@ -140,9 +140,7 @@ class BazaRb
   # @return [String] Binary data of the factbase (can be saved to file)
   # @raise [ServerFailure] If the job doesn't exist or pull fails
   def pull(id)
-    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
+    valnum(id)
     data = ''
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
@@ -160,9 +158,7 @@ class BazaRb
   # @return [Boolean] TRUE if the job has completed execution, FALSE otherwise
   # @raise [ServerFailure] If the job doesn't exist
   def finished?(id)
-    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
+    valnum(id)
     fin = false
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('finished').append(id))
@@ -178,9 +174,7 @@ class BazaRb
   # @return [String] The stdout, as a text
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def stdout(id)
-    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
+    valnum(id)
     stdout = ''
     elapsed(@loog, level: Logger::INFO) do
       stdout = get(home.append('stdout').append("#{id}.txt")).body
@@ -195,9 +189,7 @@ class BazaRb
   # @return [Integer] The exit code
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def exit_code(id)
-    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
+    valnum(id)
     code = 0
     elapsed(@loog, level: Logger::INFO) do
       code = get(home.append('exit').append("#{id}.txt")).body.to_i
@@ -212,9 +204,7 @@ class BazaRb
   # @return [String] The verdict
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def verified(id)
-    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
+    valnum(id)
     verdict = ''
     elapsed(@loog, level: Logger::INFO) do
       verdict = get(home.append('jobs').append(id).append('verified.txt')).body
@@ -230,12 +220,8 @@ class BazaRb
   # @raise [RuntimeError] If the name is already locked
   # @raise [ServerFailure] If the lock operation fails
   def lock(pname, owner)
-    raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
-    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    valname(pname, context: 'name')
+    valowner(owner)
     elapsed(@loog, level: Logger::INFO) do
       throw(:"Product name #{pname.inspect} locked at #{@host}") if post(
         home.append('lock').append(pname),
@@ -251,12 +237,8 @@ class BazaRb
   # @param [String] owner The owner of the lock (any string)
   # @raise [ServerFailure] If the unlock operation fails
   def unlock(pname, owner)
-    raise(RuntimeError, 'The "pname" of the job is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the job may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
-    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    valname(pname, context: 'name')
+    valowner(owner)
     elapsed(@loog, level: Logger::INFO) do
       post(home.append('unlock').append(pname), { 'owner' => owner })
       throw(:"Job name #{pname.inspect} unlocked at #{@host}")
@@ -269,10 +251,7 @@ class BazaRb
   # @return [Integer] The ID of the job on the server
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def recent(name)
-    raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
-    raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
-    raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
+    valname(name)
     job = nil
     elapsed(@loog, level: Logger::INFO) do
       job = get(home.append('recent').append("#{name}.txt")).body.to_i
@@ -286,10 +265,7 @@ class BazaRb
   # @param [String] pname The name of the product on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(pname)
-    raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
+    valname(pname)
     exists = false
     elapsed(@loog, level: Logger::INFO) do
       exists = get(home.append('exists').append(pname)).body == 'yes'
@@ -310,12 +286,8 @@ class BazaRb
   # @return [Integer] The ID of the created durable
   # @raise [ServerFailure] If the upload fails
   def durable_place(pname, file)
-    raise(RuntimeError, 'The "pname" of the durable is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the durable may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
-    raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
+    valname(pname)
+    valfile(file, must_exist: true)
     if File.size(file) > 1024
       raise(
         RuntimeError,
@@ -344,11 +316,8 @@ class BazaRb
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the save operation fails
   def durable_save(id, file, chunk_size: DEFAULT_CHUNK_SIZE)
-    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
-    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
-    raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
+    valnum(id, context: 'durable')
+    valfile(file, must_exist: true)
     elapsed(@loog, level: Logger::INFO) do
       upload(home.append('durables').append(id), file, chunk_size:)
       throw(:"Durable ##{id} saved #{File.size(file)} bytes to #{@host}")
@@ -361,10 +330,8 @@ class BazaRb
   # @param [String] file The local file path to save the downloaded durable
   # @raise [ServerFailure] If the load operation fails
   def durable_load(id, file)
-    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
-    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    valnum(id, context: 'durable')
+    valfile(file)
     elapsed(@loog, level: Logger::INFO) do
       download(home.append('durables').append(id), file)
       throw(:"Durable ##{id} loaded #{File.size(file)} bytes from #{@host}")
@@ -377,11 +344,8 @@ class BazaRb
   # @param [String] owner The owner of the lock
   # @raise [ServerFailure] If the lock operation fails
   def durable_lock(id, owner)
-    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
-    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
-    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    valnum(id, context: 'durable')
+    valowner(owner)
     elapsed(@loog, level: Logger::INFO) do
       post(home.append('durables').append(id).append('lock'), { 'owner' => owner })
       throw(:"Durable ##{id} locked at #{@host}")
@@ -394,11 +358,8 @@ class BazaRb
   # @param [String] owner The owner of the lock
   # @raise [ServerFailure] If the unlock operation fails
   def durable_unlock(id, owner)
-    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
-    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
-    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
-    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
-    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    valnum(id, context: 'durable')
+    valowner(owner)
     elapsed(@loog, level: Logger::INFO) do
       post(home.append('durables').append(id).append('unlock'), { 'owner' => owner })
       throw(:"Durable ##{id} unlocked at #{@host}")
@@ -411,12 +372,8 @@ class BazaRb
   # @param [String] file The file name
   # @return [Integer, nil] The ID of the durable if found, nil if not found
   def durable_find(pname, file)
-    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "file" is nil') if file.nil?
-    raise(RuntimeError, 'The "file" may not be empty') if file.empty?
+    valname(pname)
+    valfile(file)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('durable-find').add(file:, pname:), [200, 404])
@@ -441,19 +398,18 @@ class BazaRb
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
   def transfer(recipient, amount, summary, job: nil, badge: nil)
-    raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
-    raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
-    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    raise(BazaRb::ValidationError, 'The "recipient" is nil') if recipient.nil?
+    unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
+      raise(BazaRb::ValidationError, "The recipient #{recipient.inspect} is not valid")
+    end
+    raise(BazaRb::ValidationError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
-      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+      raise(BazaRb::ValidationError, 'The "amount" must be Float or BigDecimal')
     end
-    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
-    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
-    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
-    unless job.nil?
-      raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
-      raise(RuntimeError, 'The ID must be positive') unless job.positive?
-    end
+    raise(BazaRb::ValidationError, 'The "amount" must be positive') unless amount.positive?
+    raise(BazaRb::ValidationError, 'The "summary" is nil') if summary.nil?
+    raise(BazaRb::ValidationError, "The summary #{summary.inspect} is empty") if summary.empty?
+    valnum(job) unless job.nil?
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
     body = { 'human' => recipient, 'amount' => amt, 'summary' => summary }
@@ -475,17 +431,17 @@ class BazaRb
   # @return [Integer] Receipt ID for the fee payment
   # @raise [ServerFailure] If the payment fails
   def fee(tab, amount, summary, job)
-    raise(RuntimeError, 'The "tab" is nil') if tab.nil?
-    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    raise(BazaRb::ValidationError, 'The "tab" is nil') if tab.nil?
+    raise(BazaRb::ValidationError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
-      raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
+      raise(BazaRb::ValidationError, 'The "amount" must be Float or BigDecimal')
     end
-    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
-    raise(RuntimeError, 'The "job" is nil') if job.nil?
-    raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
-    raise(RuntimeError, 'The "job" must be positive') unless job.positive?
-    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
-    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    raise(BazaRb::ValidationError, 'The "amount" must be positive') unless amount.positive?
+    raise(BazaRb::ValidationError, 'The "job" is nil') if job.nil?
+    raise(BazaRb::ValidationError, 'The "job" must be Integer') unless job.is_a?(Integer)
+    raise(BazaRb::ValidationError, 'The "job" must be positive') unless job.positive?
+    raise(BazaRb::ValidationError, 'The "summary" is nil') if summary.nil?
+    raise(BazaRb::ValidationError, "The summary #{summary.inspect} is empty") if summary.empty?
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
@@ -517,14 +473,14 @@ class BazaRb
   # @return [String] The cached result or newly computed result from the block
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
-    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
-    raise(RuntimeError, 'The "badge" is nil') if badge.nil?
-    raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?
-    raise(RuntimeError, 'The "why" is nil') if why.nil?
-    raise(RuntimeError, 'The "why" may not be empty') if why.empty?
-    raise(RuntimeError, 'The "job" must be an Integer') unless job.nil? || job.is_a?(Integer)
-    raise(RuntimeError, 'The "job" must be positive') unless job.nil? || job.positive?
+    raise(BazaRb::ValidationError, 'The "pname" is nil') if pname.nil?
+    raise(BazaRb::ValidationError, 'The "pname" may not be empty') if pname.empty?
+    raise(BazaRb::ValidationError, 'The "badge" is nil') if badge.nil?
+    raise(BazaRb::ValidationError, 'The "badge" may not be empty') if badge.empty?
+    raise(BazaRb::ValidationError, 'The "why" is nil') if why.nil?
+    raise(BazaRb::ValidationError, 'The "why" may not be empty') if why.empty?
+    raise(BazaRb::ValidationError, 'The "job" must be an Integer') unless job.nil? || job.is_a?(Integer)
+    raise(BazaRb::ValidationError, 'The "job" must be positive') unless job.nil? || job.positive?
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
       ret = get(home.append('result').add(badge:), [200, 204])
       return ret.body if ret.code == 200
@@ -824,7 +780,9 @@ class BazaRb
         @loog.debug(msg.compact.join(', '))
         break if ret.code == 200
         range, total = crange(rheaders)
-        raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
+        unless total.match?(/\A(?:\*|[0-9]+)\z/)
+          raise(RuntimeError, "Total size is not valid (#{total.inspect})")
+        end
         _b, e = range.split('-', 2)
         raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
         raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
