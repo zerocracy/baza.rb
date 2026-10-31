@@ -516,7 +516,7 @@ class BazaRb
   # @yield Block that computes the result if not cached
   # @return [String] The cached result or newly computed result from the block
   # @raise [ServerFailure] If the valve operation fails
-  def enter(pname, badge, why, job)
+  def enter(pname, badge, why, job = nil)
     raise(RuntimeError, 'The "pname" is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
     raise(RuntimeError, 'The "badge" is nil') if badge.nil?

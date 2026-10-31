@@ -308,6 +308,18 @@ class TestFake < Minitest::Test
     assert_equal('test-result', BazaRb::Fake.new.enter('test-job', 'test-badge', 'test-reason', 42) { 'test-result' })
   end
 
+  def test_enter_without_job
+    called = 0
+    assert_equal(
+      'test-result',
+      BazaRb::Fake.new.enter('test-job', 'test-badge', 'test-reason') do
+        called += 1
+        'test-result'
+      end
+    )
+    assert_equal(1, called)
+  end
+
   def test_enter_rejects_multiline_name_and_badge
     baza = BazaRb::Fake.new
     assert_equal(
