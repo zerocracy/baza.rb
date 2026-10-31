@@ -52,6 +52,9 @@ class BazaRb
   # When the server sent incorrectly compressed data.
   class BadCompression < StandardError; end
 
+  # When the server sent an invalid or unsupported Content-Range header.
+  class BadRange < StandardError; end
+
   # Initialize a new Zerocracy API client.
   #
   # @param [String] host The API host name (e.g., 'api.zerocracy.com')
@@ -817,17 +820,21 @@ class BazaRb
             raise(BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})")
           end
         end
+        total = nil
+        e = nil
+        if ret.code == 206
+          range, total = crange(rheaders)
+          raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
+          _b, e = range.split('-', 2)
+          raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
+          raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
+        end
         File.open(file, 'ab') do |f|
           msg << "added to existing #{File.size(file)} bytes"
           f.write(slice)
         end
         @loog.debug(msg.compact.join(', '))
         break if ret.code == 200
-        range, total = crange(rheaders)
-        raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
-        _b, e = range.split('-', 2)
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
@@ -837,11 +844,19 @@ class BazaRb
     end
   end
 
-  def crange(headers)
-    crange = headers['Content-Range']
+  # Parse and validate the Content-Range header.
+  #
+  # @param [Hash, String] header The response headers hash or raw header value
+  # @return [Array<String>] The range and total as a pair of strings
+  # @raise [RuntimeError] If the header is missing or total is missing
+  # @raise [BazaRb::BadRange] If the range-unit is not bytes or header is malformed
+  def crange(header)
+    crange = header.is_a?(String) ? header : header&.[]('Content-Range')
     raise(RuntimeError, 'Content-Range header is missing') if crange.nil?
-    _, value = crange.split
-    raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if value.nil?
+    parts = crange.split(' ', 2)
+    raise(BazaRb::BadRange, "Content-Range is not valid (#{crange.inspect})") unless parts.length == 2
+    unit, value = parts
+    raise(BazaRb::BadRange, "Unsupported Content-Range unit '#{unit}'") unless unit.casecmp?('bytes')
     range, total = value.split('/', 2)
     raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if total.nil?
     [range, total]
