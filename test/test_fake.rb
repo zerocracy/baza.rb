@@ -272,6 +272,22 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_transfer_rejects_non_string_summary
+    [42, :payment, ['summary'], { a: 1 }].each do |summary|
+      assert_equal(
+        'Summary must be a String',
+        assert_raises(ArgumentError) { BazaRb::Fake.new.transfer('recipient', 1.0, summary) }.message
+      )
+    end
+  end
+
+  def test_transfer_rejects_empty_summary
+    assert_equal(
+      'The summary "" is empty',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1.0, '') }.message
+    )
+  end
+
   def test_pays_fee
     assert_equal(42, BazaRb::Fake.new.fee('unknown', 43.0, 'for fun', 44))
   end
@@ -301,6 +317,29 @@ class TestFake < Minitest::Test
     assert_equal(
       'The "job" must be positive',
       assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, 'test', -1) }.message
+    )
+  end
+
+  def test_fee_raises_when_summary_is_nil
+    assert_equal(
+      'The "summary" is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, nil, 44) }.message
+    )
+  end
+
+  def test_fee_raises_when_summary_is_not_string
+    [42, :fee, ['summary'], { a: 1 }].each do |summary|
+      assert_equal(
+        'Summary must be a String',
+        assert_raises(ArgumentError) { BazaRb::Fake.new.fee('unknown', 1.0, summary, 44) }.message
+      )
+    end
+  end
+
+  def test_fee_raises_when_summary_is_empty
+    assert_equal(
+      'The summary "" is empty',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, '', 44) }.message
     )
   end
 
