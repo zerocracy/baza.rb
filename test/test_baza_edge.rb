@@ -773,6 +773,55 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(assert_raises(RuntimeError) { fake_baza.push('a' * 33, 'data', []) }.message, 'is too long')
   end
 
+  def test_push_removes_temporary_file
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    baza.define_singleton_method(:upload) do |_uri, path, _headers, **_kwargs|
+      @seen = path
+      true
+    end
+    baza.push('myproduct', 'sample-factbase-data', [])
+    seen = baza.instance_variable_get(:@seen)
+    refute_nil(seen, 'Temporary file path was yielded to upload')
+    refute_path_exists(seen, 'Temporary file used during push should be unlinked after return')
+  end
+
+  def test_pull_removes_temporary_file
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    baza.define_singleton_method(:download) do |_uri, path|
+      @seen = path
+      File.binwrite(path, 'sample-data')
+      true
+    end
+    assert_equal('sample-data', baza.pull(42))
+    seen = baza.instance_variable_get(:@seen)
+    refute_nil(seen, 'Temporary file path was yielded to download')
+    refute_path_exists(seen, 'Temporary file used during pull should be unlinked after return')
+  end
+
+  def test_push_removes_temporary_file_on_error
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    baza.define_singleton_method(:upload) do |_uri, path, _headers, **_kwargs|
+      @seen = path
+      raise(StandardError, 'failed')
+    end
+    assert_raises(StandardError) { baza.push('myproduct', 'sample-factbase-data', []) }
+    seen = baza.instance_variable_get(:@seen)
+    refute_nil(seen)
+    refute_path_exists(seen)
+  end
+
+  def test_pull_removes_temporary_file_on_error
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    baza.define_singleton_method(:download) do |_uri, path|
+      @seen = path
+      raise(StandardError, 'failed')
+    end
+    assert_raises(StandardError) { baza.pull(42) }
+    seen = baza.instance_variable_get(:@seen)
+    refute_nil(seen)
+    refute_path_exists(seen)
+  end
+
   def test_transfer_raises_when_amount_is_not_positive
     [0.0, -1.0, -0.000001].each do |amount|
       assert_equal(
