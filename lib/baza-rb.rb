@@ -79,11 +79,13 @@ class BazaRb
   # Get GitHub login name of the logged in user.
   #
   # @return [String] GitHub nickname of the authenticated user
+  # @raise [StandardError] If login response is empty or malformed
   # @raise [ServerFailure] If authentication fails or server returns an error
   def whoami
     nick = nil
     elapsed(@loog, level: Logger::INFO) do
       nick = get(home.append('whoami')).body
+      raise(StandardError, "Invalid login received: '#{nick}'") unless nick&.match?(/\A!?[a-z0-9-]+\z/i)
       throw(:"I know that I am @#{nick}, at #{@host}")
     end
     nick
