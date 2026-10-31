@@ -158,6 +158,7 @@ class BazaRb
   #
   # @param [Integer] id The ID of the job on the server
   # @return [Boolean] TRUE if the job has completed execution, FALSE otherwise
+  # @raise [RuntimeError] If the response body is malformed
   # @raise [ServerFailure] If the job doesn't exist
   def finished?(id)
     raise(RuntimeError, 'The ID of the job is nil') if id.nil?
@@ -166,7 +167,13 @@ class BazaRb
     fin = false
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('finished').append(id))
-      fin = ret.body == 'yes'
+      if ret.body == 'yes'
+        fin = true
+      elsif ret.body.start_with?('started')
+        fin = false
+      else
+        raise(RuntimeError, "Invalid response body from /finished/#{id}: '#{ret.body}'")
+      end
       throw(:"The job ##{id} is #{'not yet ' unless fin}finished at #{@host}#{" (#{ret.body.inspect})" unless fin}")
     end
     fin
