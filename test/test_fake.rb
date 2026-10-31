@@ -122,6 +122,33 @@ class TestFake < Minitest::Test
     end
   end
 
+  def test_durable_place_rejects_oversized_file
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'test.bin')
+      File.write(f, 'x' * 1025)
+      assert_equal(
+        "The file '#{f}' is too big (1025 bytes) for durable_place(), use durable_save() instead",
+        assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('test-job', f) }.message
+      )
+    end
+  end
+
+  def test_durable_place_accepts_file_at_limit
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'test.bin')
+      File.write(f, 'x' * 1024)
+      assert_equal(42, BazaRb::Fake.new.durable_place('test-job', f))
+    end
+  end
+
+  def test_durable_save_accepts_oversized_file
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'test.bin')
+      File.write(f, 'x' * 1025)
+      assert_nil(BazaRb::Fake.new.durable_save(42, f))
+    end
+  end
+
   def test_durable_lock_accepts_owner_with_email_shape
     baza = BazaRb::Fake.new
     baza.durable_lock(42, 'jeff@example.com')

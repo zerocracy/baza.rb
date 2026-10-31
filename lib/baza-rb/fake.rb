@@ -145,6 +145,12 @@ class BazaRb::Fake
   def durable_place(pname, file)
     checkname(pname)
     checkfile(file)
+    if File.size(file) > 1024
+      raise(
+        RuntimeError,
+        "The file '#{file}' is too big (#{File.size(file)} bytes) for durable_place(), use durable_save() instead"
+      )
+    end
     42
   end
 
