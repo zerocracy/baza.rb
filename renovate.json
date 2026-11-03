@@ -14,5 +14,7 @@
         "nio4r"
       ]
     }
-  ]
+  ],
+  "automerge": true,
+  "platformAutomerge": false
 }
