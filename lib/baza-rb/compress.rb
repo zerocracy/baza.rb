@@ -25,11 +25,22 @@ class BazaRb
     # @return [String] The decompressed data
     # @raise [BadCompression] If the data is not valid gzip
     def unzip(data)
+      compressed = StringIO.new(data)
       unzipped = StringIO.new
-      Zlib::GzipReader.new(StringIO.new(data)).each(4096) do |chunk|
-        unzipped.write(chunk)
-        next unless unzipped.length > LIMIT_UNCOMPRESSED
-        raise(BadCompression, "Uncompressed size #{unzipped.length} exceeds limit #{LIMIT_UNCOMPRESSED}")
+      loop do
+        reader = Zlib::GzipReader.new(compressed)
+        begin
+          reader.each(4096) do |chunk|
+            unzipped.write(chunk)
+            next unless unzipped.length > LIMIT_UNCOMPRESSED
+            raise(BadCompression, "Uncompressed size #{unzipped.length} exceeds limit #{LIMIT_UNCOMPRESSED}")
+          end
+          unused = reader.unused
+        ensure
+          reader.finish
+        end
+        compressed.seek(-unused.to_s.bytesize, IO::SEEK_CUR)
+        break if compressed.eof?
       end
       unzipped.string
     rescue Zlib::GzipFile::Error => e
