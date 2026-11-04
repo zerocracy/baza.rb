@@ -440,13 +440,14 @@ class BazaRb
   #   collapsing a repeated payment into a no-op
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
-  def transfer(recipient, amount, summary, job: nil, badge: nil)
+  def transfer(recipient, amount, summary, job: nil, badge: nil) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
     end
+    raise(RuntimeError, "The amount must be finite, but #{amount.inspect} provided") unless amount.finite?
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
@@ -480,6 +481,7 @@ class BazaRb
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
     end
+    raise(RuntimeError, "The amount must be finite, but #{amount.inspect} provided") unless amount.finite?
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "job" is nil') if job.nil?
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)

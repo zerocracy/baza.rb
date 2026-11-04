@@ -265,6 +265,33 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_transfer_rejects_positive_infinity_amount
+    assert_equal(
+      'The amount must be finite, but Infinity provided',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.transfer('recipient', Float::INFINITY, 'test-payment')
+      end.message
+    )
+  end
+
+  def test_transfer_rejects_negative_infinity_amount
+    assert_equal(
+      'The amount must be finite, but -Infinity provided',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.transfer('recipient', -Float::INFINITY, 'test-payment')
+      end.message
+    )
+  end
+
+  def test_transfer_rejects_nan_amount
+    assert_equal(
+      'The amount must be finite, but NaN provided',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.transfer('recipient', Float::NAN, 'test-payment')
+      end.message
+    )
+  end
+
   def test_transfer_rejects_nil_summary
     assert_equal(
       'The "summary" is nil',
@@ -294,6 +321,33 @@ class TestFake < Minitest::Test
     assert_equal(
       'The "amount" must be positive',
       assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 0.0, 'for fun', 44) }.message
+    )
+  end
+
+  def test_fee_raises_when_amount_is_positive_infinity
+    assert_equal(
+      'The amount must be finite, but Infinity provided',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.fee('unknown', Float::INFINITY, 'for fun', 44)
+      end.message
+    )
+  end
+
+  def test_fee_raises_when_amount_is_negative_infinity
+    assert_equal(
+      'The amount must be finite, but -Infinity provided',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.fee('unknown', -Float::INFINITY, 'for fun', 44)
+      end.message
+    )
+  end
+
+  def test_fee_raises_when_amount_is_nan
+    assert_equal(
+      'The amount must be finite, but NaN provided',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.fee('unknown', Float::NAN, 'for fun', 44)
+      end.message
     )
   end
 
