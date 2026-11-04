@@ -247,7 +247,7 @@ class BazaRb::Fake
   def enter(name, badge, why, job)
     checkname(name)
     raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_-]+\z/)
-    raise(RuntimeError, 'The reason cannot be empty') if why.empty?
+    raise(RuntimeError, 'The reason cannot be empty') if why.strip.empty?
     checkid(job) unless job.nil?
     yield
   end

@@ -188,6 +188,13 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_enter_raises_when_why_is_whitespace
+    assert_equal(
+      'The "why" may not be empty',
+      assert_raises(RuntimeError) { fake_baza.enter('pname', 'b', "  \t  ", nil) }.message
+    )
+  end
+
   def test_enter_raises_when_job_is_not_integer
     assert_equal(
       'The "job" must be an Integer',
