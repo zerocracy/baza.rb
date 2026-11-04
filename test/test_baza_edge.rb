@@ -67,6 +67,49 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(assert_raises(RuntimeError) { fake_baza.durable_find('BAD!', 'file') }.message, 'is not valid')
   end
 
+  def test_durable_place_rejects_symlink
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      real = File.join(dir, 'real.bin')
+      File.binwrite(real, 'content')
+      link = File.join(dir, 'link.bin')
+      begin
+        File.symlink(real, link)
+      rescue NotImplementedError, Errno::EPERM
+        skip('symlinks are not supported on this platform')
+      end
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza(compress: false).durable_place('simple', link)
+        end.message,
+        'symlink'
+      )
+      plain = File.join(dir, 'plain.bin')
+      File.binwrite(plain, 'plain')
+      stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+      stub_request(:post, 'https://example.org/durable-place').to_return(
+        status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
+      )
+      assert_equal(42, fake_baza(compress: false).durable_place('simple', plain))
+    end
+  end
+
+  def test_durable_place_rejects_missing_file
+    assert_includes(
+      assert_raises(RuntimeError) { fake_baza.durable_place('simple', '/no/such/file') }.message,
+      'is absent'
+    )
+  end
+
+  def test_durable_place_rejects_big_file
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      big = File.join(dir, 'big.bin')
+      File.binwrite(big, 'x' * 1025)
+      assert_includes(assert_raises(RuntimeError) { fake_baza.durable_place('simple', big) }.message, 'is too big')
+    end
+  end
+
   def test_real_http
     WebMock.enable_net_connect!
     assert_equal(
