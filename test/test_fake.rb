@@ -35,7 +35,7 @@ class TestFake < Minitest::Test
   def test_push_raises_when_data_is_nil
     assert_equal(
       'The "data" of the job is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.push('test-job', nil, []) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.push('test-job', nil, []) }.message
     )
   end
 
@@ -70,28 +70,28 @@ class TestFake < Minitest::Test
   def test_lock_raises_when_owner_is_nil
     assert_equal(
       'The "owner" of the lock is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.lock('pact1', nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.lock('pact1', nil) }.message
     )
   end
 
   def test_lock_raises_when_owner_is_empty
     assert_equal(
       'The "owner" of the lock may not be empty',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.lock('pact1', '') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.lock('pact1', '') }.message
     )
   end
 
   def test_unlock_raises_when_owner_is_nil
     assert_equal(
       'The "owner" of the lock is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.unlock('pact1', nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.unlock('pact1', nil) }.message
     )
   end
 
   def test_unlock_raises_when_owner_is_empty
     assert_equal(
       'The "owner" of the lock may not be empty',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.unlock('pact1', '') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.unlock('pact1', '') }.message
     )
   end
 
@@ -131,28 +131,28 @@ class TestFake < Minitest::Test
   def test_durable_lock_raises_when_owner_is_nil
     assert_equal(
       'The "owner" of the lock is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_lock(42, nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_lock(42, nil) }.message
     )
   end
 
   def test_durable_lock_raises_when_owner_is_empty
     assert_equal(
       'The "owner" of the lock may not be empty',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_lock(42, '') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_lock(42, '') }.message
     )
   end
 
   def test_durable_unlock_raises_when_owner_is_nil
     assert_equal(
       'The "owner" of the lock is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_unlock(42, nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_unlock(42, nil) }.message
     )
   end
 
   def test_durable_unlock_raises_when_owner_is_empty
     assert_equal(
       'The "owner" of the lock may not be empty',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_unlock(42, '') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_unlock(42, '') }.message
     )
   end
 
@@ -187,21 +187,21 @@ class TestFake < Minitest::Test
   def test_durable_find_rejects_nil_file_name
     assert_equal(
       'The "file" is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_find('test-job', nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_find('test-job', nil) }.message
     )
   end
 
   def test_durable_find_rejects_empty_file_name
     assert_equal(
       'The "file" may not be empty',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_find('test-job', '') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_find('test-job', '') }.message
     )
   end
 
   def test_durable_load_raises_when_file_is_nil
     assert_equal(
       'The "file" of the durable is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_load(42, nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_load(42, nil) }.message
     )
   end
 
@@ -212,7 +212,9 @@ class TestFake < Minitest::Test
   def test_transfer_rejects_multiline_recipient
     assert_equal(
       'The recipient "recipient\nbad value" is not valid',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer("recipient\nbad value", 1.0, 'test-payment') }.message
+      assert_raises(BazaRb::ValidationError) do
+        BazaRb::Fake.new.transfer("recipient\nbad value", 1.0, 'test-payment')
+      end.message
     )
   end
 
@@ -233,42 +235,44 @@ class TestFake < Minitest::Test
   def test_transfer_rejects_invalid_job
     assert_equal(
       'The ID must be an Integer',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', job: '42') }.message
+      assert_raises(BazaRb::ValidationError) do
+        BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', job: '42')
+      end.message
     )
   end
 
   def test_transfer_rejects_nil_recipient
     assert_equal(
       'The "recipient" is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer(nil, 1.0, 'test-payment') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.transfer(nil, 1.0, 'test-payment') }.message
     )
   end
 
   def test_transfer_rejects_nil_amount
     assert_equal(
       'The "amount" is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', nil, 'test-payment') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.transfer('recipient', nil, 'test-payment') }.message
     )
   end
 
   def test_transfer_rejects_non_float_amount
     assert_equal(
       'The "amount" must be Float or BigDecimal',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1, 'test-payment') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.transfer('recipient', 1, 'test-payment') }.message
     )
   end
 
   def test_transfer_rejects_negative_amount
     assert_equal(
       'The "amount" must be positive',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', -1.0, 'test-payment') }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.transfer('recipient', -1.0, 'test-payment') }.message
     )
   end
 
   def test_transfer_rejects_nil_summary
     assert_equal(
       'The "summary" is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1.0, nil) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.transfer('recipient', 1.0, nil) }.message
     )
   end
 
@@ -279,28 +283,28 @@ class TestFake < Minitest::Test
   def test_fee_raises_when_amount_is_nil
     assert_equal(
       'The "amount" is nil',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', nil, 'for fun', 44) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.fee('unknown', nil, 'for fun', 44) }.message
     )
   end
 
   def test_fee_raises_when_amount_is_not_float
     assert_equal(
       'The "amount" must be Float or BigDecimal',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 43, 'for fun', 44) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.fee('unknown', 43, 'for fun', 44) }.message
     )
   end
 
   def test_fee_raises_when_amount_is_not_positive
     assert_equal(
       'The "amount" must be positive',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 0.0, 'for fun', 44) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.fee('unknown', 0.0, 'for fun', 44) }.message
     )
   end
 
   def test_fee_raises_when_job_is_not_positive
     assert_equal(
       'The "job" must be positive',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, 'test', -1) }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.fee('unknown', 1.0, 'test', -1) }.message
     )
   end
 
@@ -312,18 +316,26 @@ class TestFake < Minitest::Test
     baza = BazaRb::Fake.new
     assert_equal(
       'The name "test-job\nBAD" is not valid',
-      assert_raises(RuntimeError) { baza.enter("test-job\nBAD", 'test-badge', 'test-reason', 42) { 'ignored' } }.message
+      assert_raises(BazaRb::ValidationError) do
+        baza.enter("test-job\nBAD", 'test-badge', 'test-reason', 42) do
+          'ignored'
+        end
+      end.message
     )
     assert_equal(
       "The badge 'test-badge\nBAD' is not valid",
-      assert_raises(RuntimeError) { baza.enter('test-job', "test-badge\nBAD", 'test-reason', 42) { 'ignored' } }.message
+      assert_raises(BazaRb::ValidationError) do
+        baza.enter('test-job', "test-badge\nBAD", 'test-reason', 42) do
+          'ignored'
+        end
+      end.message
     )
   end
 
   def test_durable_lock_rejects_multiline_owner
     assert_equal(
       'The owner "test-owner\nbad value" is not valid',
-      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value") }.message
+      assert_raises(BazaRb::ValidationError) { BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value") }.message
     )
   end
 
