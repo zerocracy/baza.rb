@@ -402,6 +402,45 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_name_exists_returns_true_when_yes
+    stub_request(:get, 'http://127.0.0.1:8080/exists/foo')
+      .to_return(status: 200, body: 'yes', headers: { 'Content-Type' => 'text/plain' })
+    assert(client(8080).name_exists?('foo'))
+  end
+
+  def test_name_exists_returns_false_when_no
+    stub_request(:get, 'http://127.0.0.1:8080/exists/bar')
+      .to_return(status: 200, body: 'no', headers: { 'Content-Type' => 'text/plain' })
+    refute(client(8080).name_exists?('bar'))
+  end
+
+  def test_name_exists_raises_on_empty_body
+    stub_request(:get, 'http://127.0.0.1:8080/exists/empty')
+      .to_return(status: 200, body: '', headers: { 'Content-Type' => 'text/plain' })
+    assert_equal(
+      "Invalid response body from /exists/empty: ''",
+      assert_raises(RuntimeError) { client(8080).name_exists?('empty') }.message
+    )
+  end
+
+  def test_name_exists_raises_on_html_error
+    stub_request(:get, 'http://127.0.0.1:8080/exists/broken')
+      .to_return(status: 200, body: '<html>500 Internal Error</html>', headers: { 'Content-Type' => 'text/html' })
+    assert_equal(
+      "Invalid response body from /exists/broken: '<html>500 Internal Error</html>'",
+      assert_raises(RuntimeError) { client(8080).name_exists?('broken') }.message
+    )
+  end
+
+  def test_name_exists_raises_on_unexpected_response
+    stub_request(:get, 'http://127.0.0.1:8080/exists/unexpected')
+      .to_return(status: 200, body: 'unexpected response', headers: { 'Content-Type' => 'text/plain' })
+    assert_equal(
+      "Invalid response body from /exists/unexpected: 'unexpected response'",
+      assert_raises(RuntimeError) { client(8080).name_exists?('unexpected') }.message
+    )
+  end
+
   def test_checks_job_exit_code
     interaction
       .given('user is authenticated')
