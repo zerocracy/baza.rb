@@ -753,6 +753,113 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_download_rejects_non_byte_unit_records
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: 'corrupted record data',
+          headers: { 'Content-Range' => 'records 4-7/8' }
+        )
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.5, pause: 0)
+      assert_includes(
+        assert_raises(BazaRb::BadRange) do
+          baza.__send__(:download, baza.__send__(:home).append('file'), file)
+        end.message,
+        "Unsupported Content-Range unit 'records'"
+      )
+      assert_equal(0, File.size(file), 'Corrupted data must not be appended to file')
+    end
+  end
+
+  def test_download_rejects_non_byte_unit_items
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: 'corrupted items data',
+          headers: { 'Content-Range' => 'items 0-9/10' }
+        )
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.5, pause: 0)
+      assert_includes(
+        assert_raises(BazaRb::BadRange) do
+          baza.__send__(:download, baza.__send__(:home).append('file'), file)
+        end.message,
+        "Unsupported Content-Range unit 'items'"
+      )
+      assert_equal(0, File.size(file), 'Corrupted data must not be appended to file')
+    end
+  end
+
+  def test_download_rejects_corrupted_second_chunk
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: 'valid',
+          headers: { 'Content-Range' => 'bytes 0-4/10' }
+        )
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=5-' })
+        .to_return(
+          status: 206,
+          body: 'corrupted',
+          headers: { 'Content-Range' => 'records 5-9/10' }
+        )
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.5, pause: 0)
+      assert_raises(BazaRb::BadRange) do
+        baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      end
+      assert_equal(5, File.size(file), 'File size should reflect only valid chunk')
+      assert_equal('valid', File.binread(file), 'Corrupted chunk must not be appended')
+    end
+  end
+
+  def test_download_accepts_uppercase_bytes_unit
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: 'hello world',
+          headers: { 'Content-Range' => 'BYTES 0-10/11' }
+        )
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.5, pause: 0)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      assert_equal('hello world', File.binread(file))
+    end
+  end
+
+  def test_download_rejects_missing_unit
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: 'bad data',
+          headers: { 'Content-Range' => '0-9/10' }
+        )
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.5, pause: 0)
+      assert_raises(BazaRb::BadRange) do
+        baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      end
+      assert_equal(0, File.size(file), 'Corrupted data must not be appended to file')
+    end
+  end
+
   private
 
   def client(port, pause: 1)
