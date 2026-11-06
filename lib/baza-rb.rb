@@ -780,12 +780,14 @@ class BazaRb
   # @param [Iri] uri The URI to download from
   # @param [String] file The local file path to save to
   # @raise [ServerFailure] If the download fails
+  # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
   def download(uri, file)
     FileUtils.mkdir_p(File.dirname(file))
     FileUtils.rm_f(file)
     FileUtils.touch(file)
     chunk = 0
     blanks = [204, 302]
+    blanks_attempt = 0
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice = ''
@@ -824,7 +826,16 @@ class BazaRb
         ]
         uri = rehost(ret, uri)
         if blanks.include?(ret.code)
-          sleep(2)
+          blanks_attempt += 1
+          if blanks_attempt > @retries
+            raise(
+              BazaRb::ServerFailure,
+              "Server returned empty response #{blanks_attempt} times while downloading '#{uri}'"
+            )
+          end
+          seconds = @pause * (2**blanks_attempt)
+          @loog.info("Blank response ##{ret.code}, sleep #{seconds}s (attempt #{blanks_attempt})...")
+          sleep(seconds) unless @pause.zero?
           next
         end
         if gzipped
@@ -854,6 +865,7 @@ class BazaRb
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
   end
+  # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
   def crange(headers)
     crange = headers['Content-Range']
