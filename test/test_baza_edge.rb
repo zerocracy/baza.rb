@@ -797,7 +797,7 @@ class TestBazaRbEdge < Minitest::Test
       file = File.join(dir, 'test.txt')
       host = 'example.org'
       other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false, sticky: true)
       stub_request(:get, "https://#{host}:443/file")
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(
@@ -826,7 +826,7 @@ class TestBazaRbEdge < Minitest::Test
       file = File.join(dir, 'chunked.txt')
       host = 'example.org'
       other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false, sticky: true)
       stub_request(:get, "https://#{host}:443/file")
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(
@@ -856,7 +856,7 @@ class TestBazaRbEdge < Minitest::Test
       File.write(file, 'test data')
       host = 'example.org'
       other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false, sticky: true)
       stub_request(:put, "https://#{host}:443/file")
         .to_return(
           status: 200,
@@ -870,7 +870,7 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   def test_rehost_is_thread_safe
-    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, sticky: true)
     candidates = (1..16).map { |i| "server#{i}.example.org" }
     barrier = Queue.new
     candidates.map do |name|
@@ -887,6 +887,21 @@ class TestBazaRbEdge < Minitest::Test
       candidates,
       baza.instance_variable_get(:@host),
       'rehost should leave @host at one of the candidate hostnames'
+    )
+  end
+
+  def test_rehost_rejected_by_default
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/test')
+      .to_return(status: 200, body: 'ok', headers: { 'X-Zerocracy-Host' => 'evil.com' })
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL)
+    home = baza.__send__(:home)
+    assert_equal(
+      home.to_s,
+      baza.__send__(
+        :rehost,
+        Typhoeus::Request.get('https://example.org:443/test', headers: {}, connecttimeout: 1, timeout: 1), home
+      ).to_s
     )
   end
 
@@ -1080,7 +1095,7 @@ class TestBazaRbEdge < Minitest::Test
       File.write(file, 'x' * 2_000_000)
       host = 'example.org'
       other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false, sticky: true)
       stub_request(:put, "https://#{host}:443/file")
         .with(headers: { 'X-Zerocracy-Chunk' => '0' })
         .to_return(
