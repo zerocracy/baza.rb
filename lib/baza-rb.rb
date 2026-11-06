@@ -123,7 +123,7 @@ class BazaRb
     raise(RuntimeError, 'The "chunk_size" must be a positive Integer') unless chunk_size.is_a?(Integer)
     raise(RuntimeError, 'The "chunk_size" must be a positive Integer') unless chunk_size.positive?
     elapsed(@loog, level: Logger::INFO) do
-      Tempfile.open do |file|
+      Tempfile.create do |file|
         File.binwrite(file.path, data)
         upload(
           home.append('push').append(pname),
@@ -149,7 +149,7 @@ class BazaRb
     raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     data = ''
     elapsed(@loog, level: Logger::INFO) do
-      Tempfile.open do |file|
+      Tempfile.create do |file|
         download(home.append('pull').append("#{id}.fb"), file.path)
         data = File.binread(file)
         throw(:"Pulled #{data.bytesize} bytes of job ##{id} factbase at #{@host}")
