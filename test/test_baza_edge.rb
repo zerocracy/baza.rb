@@ -23,6 +23,75 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRbEdge < Minitest::Test
+  def test_balance_rejects_empty_response
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/account/balance').to_return(body: '')
+    assert_equal(
+      'invalid balance response from /account/balance: expected a finite number',
+      assert_raises(RuntimeError) { fake_baza.balance }.message
+    )
+  end
+
+  def test_balance_rejects_whitespace_response
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/account/balance').to_return(body: " \t\n")
+    assert_equal(
+      'invalid balance response from /account/balance: expected a finite number',
+      assert_raises(RuntimeError) { fake_baza.balance }.message
+    )
+  end
+
+  def test_balance_rejects_nonnumeric_response
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/account/balance').to_return(body: 'not a number')
+    assert_equal(
+      'invalid balance response from /account/balance: expected a finite number',
+      assert_raises(RuntimeError) { fake_baza.balance }.message
+    )
+  end
+
+  def test_balance_rejects_numeric_prefix_with_garbage
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/account/balance').to_return(body: '1.23garbage')
+    assert_equal(
+      'invalid balance response from /account/balance: expected a finite number',
+      assert_raises(RuntimeError) { fake_baza.balance }.message
+    )
+  end
+
+  def test_balance_rejects_positive_infinity
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/account/balance').to_return(body: '1e309')
+    assert_equal(
+      'invalid balance response from /account/balance: expected a finite number',
+      assert_raises(RuntimeError) { fake_baza.balance }.message
+    )
+  end
+
+  def test_balance_rejects_negative_infinity
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/account/balance').to_return(body: '-1e309')
+    assert_equal(
+      'invalid balance response from /account/balance: expected a finite number',
+      assert_raises(RuntimeError) { fake_baza.balance }.message
+    )
+  end
+
+  def test_balance_accepts_numeric_responses
+    WebMock.disable_net_connect!
+    [
+      ['0', 0.0],
+      ['-3.5', -3.5],
+      ['42.33', 42.33],
+      ['+2.5', 2.5],
+      ['1e2', 100.0],
+      [" \t1.25\n", 1.25]
+    ].each do |body, balance|
+      stub_request(:get, 'https://example.org:443/account/balance').to_return(body:)
+      assert_in_delta(balance, fake_baza.balance)
+    end
+  end
+
   def test_durable_place
     WebMock.disable_net_connect!
     [fake_baza(compress: true), fake_baza(compress: false)].each do |baza|
