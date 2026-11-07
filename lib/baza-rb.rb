@@ -545,11 +545,11 @@ class BazaRb
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
       ret = get(home.append('result').add(badge:), [200, 204])
       return ret.body if ret.code == 200
-      r = yield
+      s = yield.to_s
       uri = home.append('valves')
       uri = uri.add(job:) unless job.nil?
-      post(uri, { 'badge' => badge, 'pname' => pname, 'result' => r.to_s, 'why' => why })
-      r.to_s
+      post(uri, { 'badge' => badge, 'pname' => pname, 'result' => s, 'why' => why })
+      s
     end
   end
 

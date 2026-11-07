@@ -1238,6 +1238,24 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal('', fake_baza(compress: false).enter('test', 'test-badge', 'testing', nil) { result })
   end
 
+  def test_enter_returns_exactly_the_value_it_stored
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge').to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    calls = 0
+    unstable = Object.new
+    unstable.define_singleton_method(:to_s) do
+      calls += 1
+      "v#{calls}"
+    end
+    stub_request(:post, 'https://example.org:443/valves').to_return do |request|
+      assert_equal('v1', URI.decode_www_form(request.body).to_h['result'])
+      { status: 302 }
+    end
+    assert_equal('v1', fake_baza(compress: false).enter('test', 'test-badge', 'testing', nil) { unstable })
+    assert_equal(1, calls)
+  end
+
   def test_enter_yields_once_on_transient_post_failure
     WebMock.disable_net_connect!
     csrf = 'swordfish'
