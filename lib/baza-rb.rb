@@ -827,6 +827,7 @@ class BazaRb
           sleep(2)
           next
         end
+        last, total = crange(rheaders, File.size(file), slice.bytesize) if ret.code == 206
         if gzipped
           begin
             slice = unzip(slice)
@@ -841,13 +842,7 @@ class BazaRb
         end
         @loog.debug(msg.compact.join(', '))
         break if ret.code == 200
-        range, total = crange(rheaders)
-        raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
-        _b, e = range.split('-', 2)
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
-        break if e.to_i == total.to_i - 1
-        break if total == '0'
+        break if last == total.to_i - 1
         chunk += 1
         sleep(1) if rheaders['Content-Length'].to_i.zero?
       end
@@ -855,14 +850,28 @@ class BazaRb
     end
   end
 
-  def crange(headers)
+  def crange(headers, offset, length)
     crange = headers['Content-Range']
     raise(RuntimeError, 'Content-Range header is missing') if crange.nil?
     _, value = crange.split
     raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if value.nil?
     range, total = value.split('/', 2)
     raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if total.nil?
-    [range, total]
+    raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
+    unless range.match?(/\A[0-9]+-[0-9]+\z/)
+      raise(RuntimeError, "Range is not valid (#{range.inspect}): #{crange.inspect}")
+    end
+    first, last = range.split('-').map(&:to_i)
+    if last < first || (total != '*' && last >= total.to_i)
+      raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})")
+    end
+    if first != offset
+      raise(RuntimeError, "Content-Range starts at #{first}, expected #{offset} (#{crange.inspect})")
+    end
+    if length != last - first + 1
+      raise(RuntimeError, "Content-Range differs from the #{length} received bytes (#{crange.inspect})")
+    end
+    [last, total]
   end
 
   # Upload file via PUT, using chunked uploads for large files.
