@@ -313,6 +313,7 @@ class BazaRb
   # @param [String] file The path to the file to upload
   # @return [Integer] The ID of the created durable
   # @raise [ServerFailure] If the upload fails
+  # @raise [RuntimeError] If the response omits a valid durable ID
   def durable_place(pname, file)
     raise(RuntimeError, 'The "pname" of the durable is nil') if pname.nil?
     raise(RuntimeError, 'The "pname" of the durable may not be empty') if pname.empty?
@@ -328,14 +329,17 @@ class BazaRb
     end
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('durable-place'),
-        {
-          'pname' => pname,
-          'file' => File.basename(file),
-          'zip' => File.open(file, 'rb')
-        }
-      ).headers['X-Zerocracy-DurableId'].to_i
+      id = identifier(
+        post(
+          home.append('durable-place'),
+          {
+            'pname' => pname,
+            'file' => File.basename(file),
+            'zip' => File.open(file, 'rb')
+          }
+        ),
+        'X-Zerocracy-DurableId'
+      )
       throw(:"Durable ##{id} (#{file}, #{File.size(file)} bytes) placed for job \"#{pname}\" at #{@host}")
     end
     id
@@ -456,6 +460,7 @@ class BazaRb
   #   collapsing a repeated payment into a no-op
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
+  # @raise [RuntimeError] If the response omits a valid receipt ID
   def transfer(recipient, amount, summary, job: nil, badge: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
@@ -476,7 +481,7 @@ class BazaRb
     body['job'] = job unless job.nil?
     body['badge'] = badge unless badge.nil?
     elapsed(@loog, level: Logger::INFO) do
-      id = post(home.append('account').append('transfer'), body).headers['X-Zerocracy-ReceiptId'].to_i
+      id = identifier(post(home.append('account').append('transfer'), body), 'X-Zerocracy-ReceiptId')
       throw(:"Transferred Ƶ#{amt} to @#{recipient} at #{@host}")
     end
     id
@@ -490,6 +495,7 @@ class BazaRb
   # @param [Integer] job The ID of the job this fee is for
   # @return [Integer] Receipt ID for the fee payment
   # @raise [ServerFailure] If the payment fails
+  # @raise [RuntimeError] If the response omits a valid receipt ID
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
@@ -506,15 +512,18 @@ class BazaRb
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('account').append('fee'),
-        {
-          'amount' => amt,
-          'job' => job.to_s,
-          'summary' => summary,
-          'tab' => tab
-        }
-      ).headers['X-Zerocracy-ReceiptId'].to_i
+      id = identifier(
+        post(
+          home.append('account').append('fee'),
+          {
+            'amount' => amt,
+            'job' => job.to_s,
+            'summary' => summary,
+            'tab' => tab
+          }
+        ),
+        'X-Zerocracy-ReceiptId'
+      )
       throw(:"Fee Ƶ#{amt} paid at #{@host}")
     end
     id
@@ -570,6 +579,19 @@ class BazaRb
   end
 
   private
+
+  # Read a positive decimal identifier from a response header.
+  # @param [Typhoeus::Response] response The response
+  # @param [String] header The identifier header name
+  # @return [Integer] The identifier
+  # @raise [RuntimeError] If the header is missing or malformed
+  def identifier(response, header)
+    value = response.headers[header].to_s.b
+    unless value.match?(/\A[1-9][0-9]*\z/)
+      raise(RuntimeError, "Invalid #{header} response header: expected a positive decimal ID")
+    end
+    Integer(value, 10)
+  end
 
   # Calculate exponential backoff in seconds for a given attempt number.
   #
