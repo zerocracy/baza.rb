@@ -353,6 +353,7 @@ class BazaRb
     raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
     raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
     raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
+    raise(RuntimeError, "The file '#{file}' is not a regular file") unless File.file?(file)
     raise(RuntimeError, 'The "chunk_size" must be a positive Integer') unless chunk_size.is_a?(Integer)
     raise(RuntimeError, 'The "chunk_size" must be a positive Integer') unless chunk_size.positive?
     elapsed(@loog, level: Logger::INFO) do
