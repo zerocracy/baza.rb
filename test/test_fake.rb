@@ -329,6 +329,13 @@ class TestFake < Minitest::Test
     assert(called)
   end
 
+  def test_enter_raises_when_badge_is_nil_fake
+    assert_equal(
+      'The "badge" is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.enter('test-job', nil, 'test-reason', 42) { 'ignored' } }.message
+    )
+  end
+
   def test_enter_rejects_badge_with_slash
     assert_equal(
       "The badge 'bar/v1' is not valid",
