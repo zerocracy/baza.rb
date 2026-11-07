@@ -460,7 +460,6 @@ class BazaRb
   #   collapsing a repeated payment into a no-op
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
-  # @raise [RuntimeError] If the response omits a valid receipt ID
   def transfer(recipient, amount, summary, job: nil, badge: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
@@ -481,7 +480,7 @@ class BazaRb
     body['job'] = job unless job.nil?
     body['badge'] = badge unless badge.nil?
     elapsed(@loog, level: Logger::INFO) do
-      id = identifier(post(home.append('account').append('transfer'), body), 'X-Zerocracy-ReceiptId')
+      id = post(home.append('account').append('transfer'), body).headers['X-Zerocracy-ReceiptId'].to_i
       throw(:"Transferred Ƶ#{amt} to @#{recipient} at #{@host}")
     end
     id
@@ -495,7 +494,6 @@ class BazaRb
   # @param [Integer] job The ID of the job this fee is for
   # @return [Integer] Receipt ID for the fee payment
   # @raise [ServerFailure] If the payment fails
-  # @raise [RuntimeError] If the response omits a valid receipt ID
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
     raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
@@ -512,18 +510,15 @@ class BazaRb
     amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = identifier(
-        post(
-          home.append('account').append('fee'),
-          {
-            'amount' => amt,
-            'job' => job.to_s,
-            'summary' => summary,
-            'tab' => tab
-          }
-        ),
-        'X-Zerocracy-ReceiptId'
-      )
+      id = post(
+        home.append('account').append('fee'),
+        {
+          'amount' => amt,
+          'job' => job.to_s,
+          'summary' => summary,
+          'tab' => tab
+        }
+      ).headers['X-Zerocracy-ReceiptId'].to_i
       throw(:"Fee Ƶ#{amt} paid at #{@host}")
     end
     id

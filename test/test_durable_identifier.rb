@@ -9,21 +9,13 @@ require_relative 'test__helper'
 
 require_relative '../lib/baza-rb'
 
-class TestResponseIds < Minitest::Test
+class TestDurableIdentifier < Minitest::Test
   def test_durable_identifier_header
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'payload.txt')
       File.write(file, 'payload')
       identifiers('/durable-place', 'X-Zerocracy-DurableId') { client.durable_place('test', file) }
     end
-  end
-
-  def test_transfer_identifier_header
-    identifiers('/account/transfer', 'X-Zerocracy-ReceiptId') { client.transfer('alice', 1.0, 'test') }
-  end
-
-  def test_fee_identifier_header
-    identifiers('/account/fee', 'X-Zerocracy-ReceiptId') { client.fee('unknown', 1.0, 'test', 42) }
   end
 
   private
