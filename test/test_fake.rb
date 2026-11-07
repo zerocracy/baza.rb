@@ -317,6 +317,10 @@ class TestFake < Minitest::Test
     assert_equal('test-result', BazaRb::Fake.new.enter('test-job', 'test-badge', 'test-reason', 42) { 'test-result' })
   end
 
+  def test_enter_returns_string_for_non_string_block
+    assert_equal('42', BazaRb::Fake.new.enter('test-job', 'test-badge', 'test-reason', 42) { 42 })
+  end
+
   def test_enter_accepts_dotted_badge
     called = false
     assert_equal(

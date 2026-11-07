@@ -251,7 +251,7 @@ class BazaRb::Fake
     raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
     raise(RuntimeError, 'The reason cannot be empty') if why.empty?
     checkid(job) unless job.nil?
-    yield
+    yield.to_s
   end
 
   # Get CSRF token from the server for authenticated requests.

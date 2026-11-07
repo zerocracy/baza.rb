@@ -1219,6 +1219,25 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_enter_stringifies_non_string_result
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge').to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/valves')
+      .with(body: hash_including('result' => '42'))
+      .to_return(status: 302)
+    assert_equal('42', fake_baza(compress: false).enter('test', 'test-badge', 'testing', nil) { 42 })
+  end
+
+  def test_enter_stringifies_nil_result
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge').to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/valves').to_return(status: 302)
+    result = nil
+    assert_equal('', fake_baza(compress: false).enter('test', 'test-badge', 'testing', nil) { result })
+  end
+
   def test_enter_yields_once_on_transient_post_failure
     WebMock.disable_net_connect!
     csrf = 'swordfish'

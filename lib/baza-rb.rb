@@ -549,7 +549,7 @@ class BazaRb
       uri = home.append('valves')
       uri = uri.add(job:) unless job.nil?
       post(uri, { 'badge' => badge, 'pname' => pname, 'result' => r.to_s, 'why' => why })
-      r
+      r.to_s
     end
   end
 
