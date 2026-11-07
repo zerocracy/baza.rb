@@ -470,7 +470,7 @@ class BazaRb
       raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
       raise(RuntimeError, 'The ID must be positive') unless job.positive?
     end
-    amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
+    amt = decimal(amount)
     id = nil
     body = { 'human' => recipient, 'amount' => amt, 'summary' => summary }
     body['job'] = job unless job.nil?
@@ -503,7 +503,7 @@ class BazaRb
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
-    amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
+    amt = decimal(amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       id = post(
@@ -945,5 +945,17 @@ class BazaRb
       end
       throw(:"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}")
     end
+  end
+
+  # Format a positive payment amount without rounding it up.
+  # @param [Float, BigDecimal] amount The amount to format
+  # @return [String] The amount truncated to six decimal places
+  # @raise [RuntimeError] If the truncated amount is zero
+  def decimal(amount)
+    value = BigDecimal(amount.to_s).truncate(6)
+    raise(RuntimeError, 'The "amount" must be positive') unless value.positive?
+    value = value.to_s('F')
+    value += '0' * (6 - value.split('.').last.length) if amount.is_a?(Float)
+    value
   end
 end
