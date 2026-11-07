@@ -786,6 +786,7 @@ class BazaRb
     FileUtils.touch(file)
     chunk = 0
     blanks = [204, 302]
+    modes = { 200 => 'wb', 206 => 'ab' }
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice = ''
@@ -835,7 +836,7 @@ class BazaRb
             raise(BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})")
           end
         end
-        File.open(file, 'ab') do |f|
+        File.open(file, modes.fetch(ret.code)) do |f|
           msg << "added to existing #{File.size(file)} bytes"
           f.write(slice)
         end
