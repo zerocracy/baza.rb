@@ -25,15 +25,7 @@ class BazaRb
     # @return [String] The decompressed data
     # @raise [BadCompression] If the data is not valid gzip
     def unzip(data)
-      unzipped = StringIO.new
-      Zlib::GzipReader.new(StringIO.new(data)).each(4096) do |chunk|
-        unzipped.write(chunk)
-        next unless unzipped.length > LIMIT_UNCOMPRESSED
-        raise(BadCompression, "Uncompressed size #{unzipped.length} exceeds limit #{LIMIT_UNCOMPRESSED}")
-      end
-      unzipped.string
-    rescue Zlib::GzipFile::Error => e
-      raise(BadCompression, "Failed to unzip #{data.bytesize} bytes: #{e.message}")
+      inflate(StringIO.new(data))
     end
 
     # Compress request parameters with gzip.
@@ -50,6 +42,20 @@ class BazaRb
         body:,
         headers: params.fetch(:headers).merge({ 'Content-Encoding' => 'gzip', 'Content-Length' => body.bytesize })
       )
+    end
+
+    private
+
+    def inflate(source)
+      unzipped = StringIO.new
+      Zlib::GzipReader.new(source).each(4096) do |chunk|
+        unzipped.write(chunk)
+        next unless unzipped.length > LIMIT_UNCOMPRESSED
+        raise(BadCompression, "Uncompressed size #{unzipped.length} exceeds limit #{LIMIT_UNCOMPRESSED}")
+      end
+      unzipped.string
+    rescue Zlib::GzipFile::Error => e
+      raise(BadCompression, "Failed to unzip #{source.size} bytes: #{e.message}")
     end
   end
 end
