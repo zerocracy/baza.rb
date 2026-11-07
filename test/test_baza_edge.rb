@@ -17,6 +17,7 @@ require 'webrick'
 require_relative 'test__helper'
 
 require_relative '../lib/baza-rb'
+require_relative '../lib/baza-rb/fake'
 
 # Edge case tests using WebMock for implementation-specific behavior.
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
@@ -115,6 +116,28 @@ class TestBazaRbEdge < Minitest::Test
         File.binwrite(file, 'hello, world!')
         assert_equal(42, baza.durable_place('simple', file))
       end
+    end
+  end
+
+  def test_durable_place_empty_file_parity
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/durable-place').to_return(
+      status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'empty.bin')
+      File.binwrite(file, '')
+      assert_equal(42, fake_baza.durable_place('simple', file))
+      fake = BazaRb::Fake.new
+      assert_equal(42, fake.durable_place('simple', file))
+      fake.durable_save(42, file)
+      assert_equal(
+        'The file must exist',
+        assert_raises(RuntimeError) do
+          fake.durable_place('simple', File.join(dir, 'absent.bin'))
+        end.message
+      )
     end
   end
 

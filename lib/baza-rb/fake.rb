@@ -281,6 +281,5 @@ class BazaRb::Fake
 
   def checkfile(file)
     raise(RuntimeError, 'The file must exist') unless File.exist?(file)
-    raise(RuntimeError, 'The file must be non-empty') unless File.size(file).positive?
   end
 end
