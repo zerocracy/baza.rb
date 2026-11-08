@@ -241,10 +241,10 @@ class BazaRb
     raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
     raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      throw(:"Product name #{pname.inspect} locked at #{@host}") if post(
-        home.append('lock').append(pname),
-        { 'owner' => owner }, [302, 409]
-      ).code == 302
+      # @todo #490:30min shortcut: 409 after an ambiguous retry is our own lock, revisit when API returns owner
+      retried = false
+      ret = post(home.append('lock').append(pname), { 'owner' => owner }, [302, 409], on_retry: -> { retried = true })
+      throw(:"Product name #{pname.inspect} locked at #{@host}") if ret.code == 302 || (ret.code == 409 && retried)
       raise(RuntimeError, "Failed to lock #{pname.inspect} product at #{@host}, it's already locked")
     end
   end
@@ -655,12 +655,13 @@ class BazaRb
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
-  def retry_on(&)
+  def retry_on(on_retry = nil, &)
     attempt = 0
     loop do
       ret = yield
       if (ret.code == 429 || ret.code >= 499) && attempt < @retries
         attempt += 1
+        on_retry&.call if ret.code >= 499
         seconds = backoff(attempt)
         if ret.code == 429
           @loog.info("Server seems to be busy, will sleep for #{seconds} (attempt no.#{attempt})...")
@@ -758,10 +759,11 @@ class BazaRb
   # @param [Array<Integer>] allowed List of allowed HTTP response codes
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
-  def post(uri, params, allowed = [302])
-    attempt do
+  def post(uri, params, allowed = [302], on_retry: nil)
+    attempt do |try|
+      on_retry&.call if try > 1
       checked(
-        retry_on do
+        retry_on(on_retry) do
           Typhoeus::Request.post(
             uri.to_s,
             body: params.merge('_csrf' => csrf).sort.to_h,
