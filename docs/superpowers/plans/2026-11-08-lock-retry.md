@@ -166,16 +166,16 @@ end
 
 ```ruby
 def post(uri, params, allowed = [302], on_retry: nil)
+  sent = false
   attempt do |try|
-    on_retry&.call if try > 1
+    on_retry&.call if try > 1 && sent
+    body = params.merge('_csrf' => csrf).sort.to_h
     checked(
       retry_on(on_retry) do
+        sent = true
         Typhoeus::Request.post(
-          uri.to_s,
-          body: params.merge('_csrf' => csrf).sort.to_h,
-          headers:,
-          connecttimeout: @timeout,
-          timeout: @timeout
+          uri.to_s, body:, headers:,
+          connecttimeout: @timeout, timeout: @timeout
         )
       end,
       allowed
@@ -191,8 +191,7 @@ end
       retried = false
       ret = post(
         home.append('lock').append(pname),
-        { 'owner' => owner },
-        [302, 409],
+        { 'owner' => owner }, [302, 409],
         on_retry: -> { retried = true }
       )
       if ret.code == 302 || (ret.code == 409 && retried)
@@ -206,12 +205,9 @@ end
     end
 ```
 
-Add above the `retried` assignment:
-
-```ruby
-      # shortcut: a 409 after an ambiguous retry is assumed to be our own lock;
-      # the server exposes no owner check, revisit if the API returns the owner
-```
+Known limit: the `lock` docblock carries a PDD puzzle
+(`@todo #490:30min ... shortcut: ...`) because a plain `# shortcut:` comment
+trips `Elegant/NoComments`.
 
 - [ ] **Step 4: Run GREEN**
 

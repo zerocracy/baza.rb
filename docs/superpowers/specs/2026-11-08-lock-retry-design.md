@@ -37,7 +37,9 @@ caller is told the name is taken although the caller is the holder.
 1. **Ambiguous-retry flag on `post` (chosen).** `attempt` already receives the
    attempt number from the `retries` gem; `retry_on` knows the status. `lock` gets
    `on_retry:` and treats 409 as success when an earlier attempt may have applied
-   the request: transport error, 499, or 5xx. A 429 retry is not ambiguous.
+   the request: a POST was actually issued (the `sent` guard) and it hit a
+   transport error, 499, or 5xx. A re-entry that died in `csrf` sent nothing; a
+   429 retry is not ambiguous.
 2. **Re-check ownership after 409.** No client method and no documented endpoint
    returns the lock owner; the 409 fixture carries no body or header. Rejected.
 3. **Never retry `lock`.** Turns the lost reply into `TimedOut` and fails the
@@ -49,8 +51,9 @@ caller is told the name is taken although the caller is the holder.
 
 - `attempt` keeps `with_retries` but forwards its attempt number to the block.
 - `post(uri, params, allowed = [302], on_retry: nil)` calls `on_retry` when a
-  retry means the request may already have been applied: block attempt `> 1`
-  (transport), or `retry_on` status `>= 499`.
+  retry means the request may already have been applied: attempt re-entry
+  `> 1` only after a POST was issued (a retry that died in `csrf` sent
+  nothing), or `retry_on` status `>= 499`.
 - `lock` passes `on_retry: -> { retried = true }` and accepts 409 when `retried`.
 
 Known limit: if an ambiguous attempt was not applied and another process locked
