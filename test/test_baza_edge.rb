@@ -17,6 +17,7 @@ require 'webrick'
 require_relative 'test__helper'
 
 require_relative '../lib/baza-rb'
+require_relative '../lib/baza-rb/fake'
 
 # Edge case tests using WebMock for implementation-specific behavior.
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
@@ -980,10 +981,9 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   def test_fee_raises_when_summary_is_empty
-    assert_equal(
-      'The summary "" is empty',
-      assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
-    )
+    real = assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    assert_equal('The summary "" is empty', real)
+    assert_equal(real, assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, '', 42) }.message)
   end
 
   def test_transfer_works_with_bigdecimal
