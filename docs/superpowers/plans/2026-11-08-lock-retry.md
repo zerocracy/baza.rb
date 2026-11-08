@@ -205,9 +205,8 @@ end
     end
 ```
 
-Known limit: the `lock` docblock carries a PDD puzzle
-(`@todo #490:30min ... shortcut: ...`) because a plain `# shortcut:` comment
-trips `Elegant/NoComments`.
+Known limit: the `lock` docblock carries a PDD puzzle (30min) because a plain
+`# shortcut:` comment trips `Elegant/NoComments`.
 
 - [ ] **Step 4: Run GREEN**
 
