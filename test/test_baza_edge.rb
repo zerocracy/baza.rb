@@ -775,6 +775,21 @@ class TestBazaRbEdge < Minitest::Test
     assert_requested(:post, 'https://example.org:443/lock/simple', times: 2)
   end
 
+  def test_lock_raises_when_no_post_was_sent
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf')
+      .to_timeout.then.to_timeout.then.to_timeout.then.to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/lock/simple').to_return(status: 409, body: '')
+    assert_includes(
+      assert_raises(RuntimeError) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0)
+          .lock('simple', 'owner')
+      end.message,
+      "it's already locked"
+    )
+    assert_requested(:post, 'https://example.org:443/lock/simple', times: 1)
+  end
+
   # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and

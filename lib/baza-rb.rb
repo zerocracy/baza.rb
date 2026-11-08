@@ -765,17 +765,14 @@ class BazaRb
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
   def post(uri, params, allowed = [302], on_retry: nil)
+    sent = false
     attempt do |try|
-      on_retry&.call if try > 1
+      on_retry&.call if try > 1 && sent
+      body = params.merge('_csrf' => csrf).sort.to_h
       checked(
         retry_on(on_retry) do
-          Typhoeus::Request.post(
-            uri.to_s,
-            body: params.merge('_csrf' => csrf).sort.to_h,
-            headers:,
-            connecttimeout: @timeout,
-            timeout: @timeout
-          )
+          sent = true
+          Typhoeus::Request.post(uri.to_s, body:, headers:, connecttimeout: @timeout, timeout: @timeout)
         end,
         allowed
       )
