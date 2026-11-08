@@ -780,6 +780,24 @@ class TestBazaRbEdge < Minitest::Test
     assert_operator(attempts, :>, 1, 'attempt must retry on ConnectionFailed (it is a TimedOut)')
   end
 
+  # Reproduces zerocracy/baza.rb#460: libcurl can report a transport failure
+  # (e.g. CURLE_PARTIAL_FILE) while the HTTP status is already an allowed 200,
+  # since headers arrive before the body is truncated. checked() must reject
+  # that response, otherwise download() appends a partial body and stops.
+  def test_checked_rejects_partial_file_with_ok_code
+    fake = Typhoeus::Response.new(
+      return_code: :partial_file,
+      return_message: 'Transferred a partial file',
+      code: 200,
+      total_time: 0.01
+    )
+    fake.request = Typhoeus::Request.new('https://example.org:443/file', method: :get)
+    error = assert_raises(BazaRb::ConnectionFailed) { fake_baza.__send__(:checked, fake) }
+    assert_kind_of(BazaRb::TimedOut, error, 'must inherit from TimedOut so attempt retries it')
+    assert_includes(error.message, 'r:partial_file')
+    assert_includes(error.message, 'm:Transferred a partial file')
+  end
+
   def test_durable_load_from_sinatra
     WebMock.enable_net_connect!
     Dir.mktmpdir do |dir|
