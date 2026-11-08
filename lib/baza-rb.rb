@@ -645,13 +645,15 @@ class BazaRb
     with_retries(max_tries: @retries + 1, rescue: TimedOut, &)
   end
 
-  # Retry the HTTP request on rate-limiting (429) and server errors (>= 499).
+  # Retry the HTTP request on rate-limiting (429), request timeout (408) and
+  # server errors (>= 499).
   #
-  # Retries on any HTTP status 429 or >= 499. The 499 code ("Client Closed
-  # Request") is emitted by upstream proxies such as nginx when they abort
-  # an in-flight request, typically because of a load-balancer or upstream
-  # timeout. From the client's point of view this is a transient server-side
-  # failure and should be retried just like 5xx responses.
+  # Retries on any HTTP status 429, 408 or >= 499. The 408 code ("Request
+  # Timeout") and the 499 code ("Client Closed Request") are emitted by
+  # upstream proxies such as nginx when they abort an in-flight request,
+  # typically because of a load-balancer or upstream timeout. From the
+  # client's point of view this is a transient server-side failure and
+  # should be retried just like 5xx responses.
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
@@ -659,7 +661,7 @@ class BazaRb
     attempt = 0
     loop do
       ret = yield
-      if (ret.code == 429 || ret.code >= 499) && attempt < @retries
+      if (ret.code == 408 || ret.code == 429 || ret.code >= 499) && attempt < @retries
         attempt += 1
         seconds = backoff(attempt)
         if ret.code == 429
