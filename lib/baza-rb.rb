@@ -229,6 +229,8 @@ class BazaRb
 
   # Lock the name.
   #
+  # @todo #490:30min shortcut: a 409 after an ambiguous retry is assumed to be our own lock;
+  #  the server exposes no owner check, revisit when the API returns the owner.
   # @param [String] pname The name of the product on the server
   # @param [String] owner The owner of the lock (any string)
   # @raise [RuntimeError] If the name is already locked
@@ -241,7 +243,6 @@ class BazaRb
     raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
     raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      # @todo #490:30min shortcut: 409 after an ambiguous retry is our own lock, revisit when API returns owner
       retried = false
       ret = post(home.append('lock').append(pname), { 'owner' => owner }, [302, 409], on_retry: -> { retried = true })
       throw(:"Product name #{pname.inspect} locked at #{@host}") if ret.code == 302 || (ret.code == 409 && retried)
@@ -653,6 +654,8 @@ class BazaRb
   # timeout. From the client's point of view this is a transient server-side
   # failure and should be retried just like 5xx responses.
   #
+  # @param [Proc, nil] on_retry Optional callback fired when a retried request
+  #   may already have been applied by the server (status >= 499)
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
   def retry_on(on_retry = nil, &)
@@ -757,6 +760,8 @@ class BazaRb
   # @param [Iri] uri The URI to send the request to
   # @param [Hash] params The request parameters to send in the body
   # @param [Array<Integer>] allowed List of allowed HTTP response codes
+  # @param [Proc, nil] on_retry Optional callback fired when a retried request
+  #   may already have been applied by the server (transport re-entry or status >= 499)
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
   def post(uri, params, allowed = [302], on_retry: nil)
