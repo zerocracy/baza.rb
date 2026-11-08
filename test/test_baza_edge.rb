@@ -738,7 +738,7 @@ class TestBazaRbEdge < Minitest::Test
           { status: 200, body: 'jeff' }
         end
       end
-    assert_equal('jeff', BazaRb.new('example.org', 443, '000', retries: 1, pause: 0).whoami)
+    assert_equal('jeff', BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 1, pause: 0).whoami)
     assert_equal(2, attempts, 'Expected 2 HTTP calls due to 408 retries')
   end
 
@@ -752,11 +752,28 @@ class TestBazaRbEdge < Minitest::Test
       end
     assert_includes(
       assert_raises(BazaRb::ServerFailure) do
-        BazaRb.new('example.org', 443, '000', retries: 1, pause: 0).whoami
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 1, pause: 0).whoami
       end.message,
       'Invalid response code #408'
     )
     assert_equal(2, attempts, 'Expected two HTTP calls before giving up')
+  end
+
+  def test_request_timeout_with_zero_retries
+    WebMock.disable_net_connect!
+    attempts = 0
+    stub_request(:get, 'https://example.org:443/whoami')
+      .to_return do |_request|
+        attempts += 1
+        { status: 408, body: 'Request Timeout' }
+      end
+    assert_includes(
+      assert_raises(BazaRb::ServerFailure) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 0, pause: 0).whoami
+      end.message,
+      'Invalid response code #408'
+    )
+    assert_equal(1, attempts, 'Expected a single HTTP call when retries are zero')
   end
 
   def test_post_retries_on_request_timeout

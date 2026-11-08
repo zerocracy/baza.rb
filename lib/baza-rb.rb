@@ -649,10 +649,11 @@ class BazaRb
   # server errors (>= 499).
   #
   # Retries on any HTTP status 429, 408 or >= 499. The 408 code ("Request
-  # Timeout") and the 499 code ("Client Closed Request") are emitted by
+  # Timeout") is sent by the origin when the client is too slow sending its
+  # request, and the 499 code ("Client Closed Request") is emitted by
   # upstream proxies such as nginx when they abort an in-flight request,
   # typically because of a load-balancer or upstream timeout. From the
-  # client's point of view this is a transient server-side failure and
+  # client's point of view both are transient server-side failures and
   # should be retried just like 5xx responses.
   #
   # @yield The block to execute with retries
