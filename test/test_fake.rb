@@ -336,6 +336,42 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_enter_nil_badge_matches_real_client
+    message = 'The "badge" is nil'
+    assert_equal(
+      message,
+      assert_raises(RuntimeError) { BazaRb::Fake.new.enter('test-job', nil, 'test-reason', 42) { 'ignored' } }.message
+    )
+    real = BazaRb.new('example.org', 443, 'token')
+    assert_equal(
+      message,
+      assert_raises(RuntimeError) { real.enter('test-job', nil, 'test-reason', 42) { 'ignored' } }.message
+    )
+  end
+
+  def test_enter_does_not_yield_on_invalid_badge
+    called = false
+    assert_raises(RuntimeError) do
+      BazaRb::Fake.new.enter('test-job', 'bad badge', 'test-reason', 42) do
+        called = true
+      end
+    end
+    refute(called)
+  end
+
+  def test_enter_does_not_yield_when_reason_is_empty
+    called = false
+    assert_equal(
+      'The reason cannot be empty',
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.enter('test-job', 'test-badge', '', 42) do
+          called = true
+        end
+      end.message
+    )
+    refute(called)
+  end
+
   def test_enter_rejects_badge_with_slash
     assert_equal(
       "The badge 'bar/v1' is not valid",
