@@ -141,6 +141,18 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_durable_save_rejects_absent_file
+    file = File.join(Dir.mktmpdir, 'absent.bin')
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_save(42, file) }.message
+    )
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('simple', file) }.message
+    )
+  end
+
   def test_durable_place_raises_when_pname_is_invalid
     assert_includes(
       assert_raises(RuntimeError) { fake_baza.durable_place('INVALID', '/tmp/x') }.message,
