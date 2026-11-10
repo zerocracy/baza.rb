@@ -229,6 +229,8 @@ class BazaRb
 
   # Lock the name.
   #
+  # @todo #490:30min shortcut: a 409 after an ambiguous retry is assumed to be our own lock;
+  #  the server exposes no owner check, revisit when the API returns the owner.
   # @param [String] pname The name of the product on the server
   # @param [String] owner The owner of the lock (any string)
   # @raise [RuntimeError] If the name is already locked
@@ -241,10 +243,9 @@ class BazaRb
     raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
     raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      throw(:"Product name #{pname.inspect} locked at #{@host}") if post(
-        home.append('lock').append(pname),
-        { 'owner' => owner }, [302, 409]
-      ).code == 302
+      retried = false
+      ret = post(home.append('lock').append(pname), { 'owner' => owner }, [302, 409], on_retry: -> { retried = true })
+      throw(:"Product name #{pname.inspect} locked at #{@host}") if ret.code == 302 || (ret.code == 409 && retried)
       raise(RuntimeError, "Failed to lock #{pname.inspect} product at #{@host}, it's already locked")
     end
   end
@@ -653,14 +654,17 @@ class BazaRb
   # timeout. From the client's point of view this is a transient server-side
   # failure and should be retried just like 5xx responses.
   #
+  # @param [Proc, nil] on_retry Optional callback fired when a retried request
+  #   may already have been applied by the server (status >= 499)
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
-  def retry_on(&)
+  def retry_on(on_retry = nil, &)
     attempt = 0
     loop do
       ret = yield
       if (ret.code == 429 || ret.code >= 499) && attempt < @retries
         attempt += 1
+        on_retry&.call if ret.code >= 499
         seconds = backoff(attempt)
         if ret.code == 429
           @loog.info("Server seems to be busy, will sleep for #{seconds} (attempt no.#{attempt})...")
@@ -756,19 +760,19 @@ class BazaRb
   # @param [Iri] uri The URI to send the request to
   # @param [Hash] params The request parameters to send in the body
   # @param [Array<Integer>] allowed List of allowed HTTP response codes
+  # @param [Proc, nil] on_retry Optional callback fired when a retried request
+  #   may already have been applied by the server (transport re-entry or status >= 499)
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
-  def post(uri, params, allowed = [302])
-    attempt do
+  def post(uri, params, allowed = [302], on_retry: nil)
+    sent = false
+    attempt do |try|
+      on_retry&.call if try > 1 && sent
+      body = params.merge('_csrf' => csrf).sort.to_h
       checked(
-        retry_on do
-          Typhoeus::Request.post(
-            uri.to_s,
-            body: params.merge('_csrf' => csrf).sort.to_h,
-            headers:,
-            connecttimeout: @timeout,
-            timeout: @timeout
-          )
+        retry_on(on_retry) do
+          sent = true
+          Typhoeus::Request.post(uri.to_s, body:, headers:, connecttimeout: @timeout, timeout: @timeout)
         end,
         allowed
       )

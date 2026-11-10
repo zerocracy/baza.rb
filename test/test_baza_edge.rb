@@ -724,6 +724,72 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries on POST')
   end
 
+  # Reproduces zerocracy/baza.rb#490: the server took the lock and the reply was
+  # lost, so the retried POST gets 409. The caller holds the lock, not somebody
+  # else, and must not be told otherwise.
+  def test_lock_succeeds_after_timeout_retry
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/lock/simple').to_timeout.then.to_return(status: 409, body: '')
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0)
+      .lock('simple', 'owner')
+    assert_requested(:post, 'https://example.org:443/lock/simple', times: 2)
+  end
+
+  def test_lock_succeeds_after_server_error_retry
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return({ status: 503, body: '' }, { status: 409, body: '' })
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0)
+      .lock('simple', 'owner')
+    assert_requested(:post, 'https://example.org:443/lock/simple', times: 2)
+  end
+
+  def test_lock_raises_when_conflict_is_not_a_retry
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/lock/simple').to_return(status: 409, body: '')
+    assert_includes(
+      assert_raises(RuntimeError) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+          .lock('simple', 'owner')
+      end.message,
+      "it's already locked"
+    )
+    assert_requested(:post, 'https://example.org:443/lock/simple', times: 1)
+  end
+
+  def test_lock_raises_after_busy_retry
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return({ status: 429, body: '' }, { status: 409, body: '' })
+    assert_includes(
+      assert_raises(RuntimeError) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0)
+          .lock('simple', 'owner')
+      end.message,
+      "it's already locked"
+    )
+    assert_requested(:post, 'https://example.org:443/lock/simple', times: 2)
+  end
+
+  def test_lock_raises_when_no_post_was_sent
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf')
+      .to_timeout.then.to_timeout.then.to_timeout.then.to_return(body: 'token')
+    stub_request(:post, 'https://example.org:443/lock/simple').to_return(status: 409, body: '')
+    assert_includes(
+      assert_raises(RuntimeError) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0)
+          .lock('simple', 'owner')
+      end.message,
+      "it's already locked"
+    )
+    assert_requested(:post, 'https://example.org:443/lock/simple', times: 1)
+  end
+
   # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and
