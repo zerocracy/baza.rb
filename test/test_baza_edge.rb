@@ -23,6 +23,44 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRbEdge < Minitest::Test
+  def test_recent_rejects_malformed_job_id
+    WebMock.disable_net_connect!
+    ['', 'error', '<html>error</html>', '12junk', '0', '-1', '1.5', '1_2', '0x10', "12\n"].each do |body|
+      stub_request(:get, 'https://example.org/recent/test-job.txt').to_return(body:)
+      assert_equal(
+        'Invalid recent job ID response: expected a positive decimal ID',
+        assert_raises(RuntimeError) { fake_baza.recent('test-job') }.message
+      )
+    end
+  end
+
+  def test_recent_reads_positive_decimal_job_id
+    WebMock.disable_net_connect!
+    ['1', '124', '9' * 100].each do |body|
+      stub_request(:get, 'https://example.org/recent/test-job.txt').to_return(body:)
+      assert_equal(Integer(body, 10), fake_baza.recent('test-job'))
+    end
+  end
+
+  def test_exit_code_rejects_malformed_response
+    WebMock.disable_net_connect!
+    ['', 'error', '<html>error</html>', '0junk', '1.5', '1_2', '0x10', "0\n"].each do |body|
+      stub_request(:get, 'https://example.org/exit/42.txt').to_return(body:)
+      assert_equal(
+        'Invalid exit code response: expected a decimal integer',
+        assert_raises(RuntimeError) { fake_baza.exit_code(42) }.message
+      )
+    end
+  end
+
+  def test_exit_code_reads_decimal_integer
+    WebMock.disable_net_connect!
+    ['0', '1', '255', '-1'].each do |body|
+      stub_request(:get, 'https://example.org/exit/42.txt').to_return(body:)
+      assert_equal(Integer(body, 10), fake_baza.exit_code(42))
+    end
+  end
+
   def test_balance_rejects_empty_response
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/account/balance').to_return(body: '')
@@ -840,9 +878,9 @@ class TestBazaRbEdge < Minitest::Test
       stub_request(:get, "https://#{other}:443/file")
         .with(headers: { 'Range' => 'bytes=6-' })
         .to_return(
-          status: 200,
+          status: 206,
           body: 'chunk',
-          headers: {}
+          headers: { 'Content-Range' => 'bytes 6-10/11' }
         )
       baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
