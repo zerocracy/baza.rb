@@ -198,13 +198,18 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [Integer] The exit code
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
+  # @raise [RuntimeError] If the response is not a decimal integer
   def exit_code(id)
     raise(RuntimeError, 'The ID of the job is nil') if id.nil?
     raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
     raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     code = 0
     elapsed(@loog, level: Logger::INFO) do
-      code = get(home.append('exit').append("#{id}.txt")).body.to_i
+      body = get(home.append('exit').append("#{id}.txt")).body.to_s.b
+      unless body.match?(/\A-?[0-9]+\z/)
+        raise(RuntimeError, 'Invalid exit code response: expected a decimal integer')
+      end
+      code = Integer(body, 10)
       throw(:"The exit code of the job ##{id} is #{code}")
     end
     code
@@ -272,6 +277,7 @@ class BazaRb
   # @param [String] name The name of the job on the server
   # @return [Integer] The ID of the job on the server
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
+  # @raise [RuntimeError] If the response is not a positive decimal ID
   def recent(name)
     raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
@@ -279,7 +285,11 @@ class BazaRb
     raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
     job = nil
     elapsed(@loog, level: Logger::INFO) do
-      job = get(home.append('recent').append("#{name}.txt")).body.to_i
+      body = get(home.append('recent').append("#{name}.txt")).body.to_s.b
+      unless body.match?(/\A[1-9][0-9]*\z/)
+        raise(RuntimeError, 'Invalid recent job ID response: expected a positive decimal ID')
+      end
+      job = Integer(body, 10)
       throw(:"The recent \"#{name}\" job's ID is ##{job} at #{@host}")
     end
     job
