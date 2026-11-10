@@ -12,15 +12,6 @@ require_relative '../lib/baza-rb'
 
 # A range must describe the bytes received before those bytes reach the file.
 class TestDownloadRanges < Minitest::Test
-  def setup
-    WebMock.reset!
-    WebMock.disable_net_connect!
-  end
-
-  def teardown
-    WebMock.allow_net_connect!
-  end
-
   def test_rejects_incomplete_slice
     ['', 'abc'].each do |body|
       stub_request(:get, endpoint).to_return(reply(body, '0-3/4'))
@@ -112,9 +103,12 @@ class TestDownloadRanges < Minitest::Test
   end
 
   def with_file
+    WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       yield(File.join(dir, 'download.bin'))
     end
+  ensure
+    WebMock.allow_net_connect!
   end
 
   def download(file)
