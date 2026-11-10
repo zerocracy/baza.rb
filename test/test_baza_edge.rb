@@ -878,9 +878,9 @@ class TestBazaRbEdge < Minitest::Test
       stub_request(:get, "https://#{other}:443/file")
         .with(headers: { 'Range' => 'bytes=6-' })
         .to_return(
-          status: 200,
+          status: 206,
           body: 'chunk',
-          headers: {}
+          headers: { 'Content-Range' => 'bytes 6-10/11' }
         )
       baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
