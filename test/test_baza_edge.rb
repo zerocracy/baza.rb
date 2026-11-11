@@ -17,12 +17,51 @@ require 'webrick'
 require_relative 'test__helper'
 
 require_relative '../lib/baza-rb'
+require_relative '../lib/baza-rb/fake'
 
 # Edge case tests using WebMock for implementation-specific behavior.
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRbEdge < Minitest::Test
+  def test_recent_rejects_malformed_job_id
+    WebMock.disable_net_connect!
+    ['', 'error', '<html>error</html>', '12junk', '0', '-1', '1.5', '1_2', '0x10', "12\n"].each do |body|
+      stub_request(:get, 'https://example.org/recent/test-job.txt').to_return(body:)
+      assert_equal(
+        'Invalid recent job ID response: expected a positive decimal ID',
+        assert_raises(RuntimeError) { fake_baza.recent('test-job') }.message
+      )
+    end
+  end
+
+  def test_recent_reads_positive_decimal_job_id
+    WebMock.disable_net_connect!
+    ['1', '124', '9' * 100].each do |body|
+      stub_request(:get, 'https://example.org/recent/test-job.txt').to_return(body:)
+      assert_equal(Integer(body, 10), fake_baza.recent('test-job'))
+    end
+  end
+
+  def test_exit_code_rejects_malformed_response
+    WebMock.disable_net_connect!
+    ['', 'error', '<html>error</html>', '0junk', '1.5', '1_2', '0x10', "0\n"].each do |body|
+      stub_request(:get, 'https://example.org/exit/42.txt').to_return(body:)
+      assert_equal(
+        'Invalid exit code response: expected a decimal integer',
+        assert_raises(RuntimeError) { fake_baza.exit_code(42) }.message
+      )
+    end
+  end
+
+  def test_exit_code_reads_decimal_integer
+    WebMock.disable_net_connect!
+    ['0', '1', '255', '-1'].each do |body|
+      stub_request(:get, 'https://example.org/exit/42.txt').to_return(body:)
+      assert_equal(Integer(body, 10), fake_baza.exit_code(42))
+    end
+  end
+
   def test_balance_rejects_empty_response
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/account/balance').to_return(body: '')
@@ -116,6 +155,40 @@ class TestBazaRbEdge < Minitest::Test
         assert_equal(42, baza.durable_place('simple', file))
       end
     end
+  end
+
+  def test_durable_place_empty_file_parity
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/durable-place').to_return(
+      status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
+    )
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'empty.bin')
+      File.binwrite(file, '')
+      assert_equal(42, fake_baza.durable_place('simple', file))
+      fake = BazaRb::Fake.new
+      assert_equal(42, fake.durable_place('simple', file))
+      fake.durable_save(42, file)
+      assert_equal(
+        'The file must exist',
+        assert_raises(RuntimeError) do
+          fake.durable_place('simple', File.join(dir, 'absent.bin'))
+        end.message
+      )
+    end
+  end
+
+  def test_durable_save_rejects_absent_file
+    file = File.join(Dir.mktmpdir, 'absent.bin')
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_save(42, file) }.message
+    )
+    assert_equal(
+      'The file must exist',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.durable_place('simple', file) }.message
+    )
   end
 
   def test_durable_place_raises_when_pname_is_invalid
@@ -608,6 +681,30 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # A 302 with no body means "come back later", not "the file is empty":
+  # download() must skip it instead of treating the empty slice as content.
+  def test_download_skips_blank_response
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      attempts = 0
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return do |_request|
+          attempts += 1
+          if attempts < 2
+            { status: 302, body: '', headers: { 'Location' => 'https://example.org:443/elsewhere' } }
+          else
+            { status: 200, body: 'content', headers: {} }
+          end
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      assert_equal(2, attempts, 'the blank response must be skipped, not retried as a failure')
+      assert_equal('content', File.read(file), 'the skipped response must not leave an empty file')
+    end
+  end
+
   # Reproduces zerocracy/baza.rb#289: BazaRb#download never retries on
   # timeout because checked() is called outside attempt. After the fix,
   # a libcurl operation_timedout on the first GET re-raises BazaRb::TimedOut
@@ -840,9 +937,9 @@ class TestBazaRbEdge < Minitest::Test
       stub_request(:get, "https://#{other}:443/file")
         .with(headers: { 'Range' => 'bytes=6-' })
         .to_return(
-          status: 200,
+          status: 206,
           body: 'chunk',
-          headers: {}
+          headers: { 'Content-Range' => 'bytes 6-10/11' }
         )
       baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
@@ -980,10 +1077,31 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   def test_fee_raises_when_summary_is_empty
-    assert_equal(
-      'The summary "" is empty',
-      assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    real = assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    assert_equal('The summary "" is empty', real)
+    assert_equal(real, assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, '', 42) }.message)
+  end
+
+  def test_fee_raises_when_summary_is_nil
+    real = assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, nil, 42) }.message
+    assert_equal('The "summary" is nil', real)
+    assert_equal(real, assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, nil, 42) }.message)
+  end
+
+  def test_fee_rejects_empty_summary_before_http
+    WebMock.disable_net_connect!
+    assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }
+    assert_not_requested(:post, 'https://example.org/account/fee')
+  end
+
+  def test_fee_accepts_whitespace_only_summary
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/fee').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
     )
+    assert_equal(7, fake_baza(compress: false).fee('unknown', 1.0, ' ', 42))
+    assert_equal(42, BazaRb::Fake.new.fee('unknown', 1.0, ' ', 42))
   end
 
   def test_transfer_works_with_bigdecimal
@@ -1178,6 +1296,64 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Covers the out-of-range chunk rewind rejection in BazaRb#upload:
+  # when the server responds with a chunk number at or past EOF, the upload
+  # must fail with BazaRb::ServerFailure instead of seeking past EOF, sending
+  # an empty slice, and falsely reporting success.
+  def test_upload_raises_on_out_of_range_chunk_rewind
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 1_000_001)
+      received = []
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          received << request.headers['X-Zerocracy-Chunk']
+          {
+            status: 400,
+            headers: {
+              'X-Zerocracy-Flash' => 'Expecting chunk #99 (0b are here), received #0'
+            }
+          }
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      assert_match(
+        /Expecting chunk #99/,
+        assert_raises(BazaRb::ServerFailure) do
+          baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end.message
+      )
+      assert_equal(%w[0], received, 'Expected the client to fail on out-of-range rewind without empty chunk')
+    end
+  end
+
+  def test_upload_raises_on_chunk_rewind_at_eof
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 1_000_001)
+      received = []
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          received << request.headers['X-Zerocracy-Chunk']
+          {
+            status: 400,
+            headers: {
+              'X-Zerocracy-Flash' => 'Expecting chunk #2 (0b are here), received #0'
+            }
+          }
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      assert_match(
+        /Expecting chunk #2/,
+        assert_raises(BazaRb::ServerFailure) do
+          baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end.message
+      )
+      assert_equal(%w[0], received, 'Expected the client to fail on EOF chunk rewind')
+    end
+  end
+
   # Covers the `raise if rewinds > @retries` exit of the upload rescue block:
   # when the server keeps returning a matching `Expecting chunk #N` flash on
   # every PUT, the rewind loop must terminate after the rewind count exceeds
@@ -1250,6 +1426,36 @@ class TestBazaRbEdge < Minitest::Test
     )
     assert_equal(1, yld, 'User block must yield exactly once')
     assert_requested(:post, 'https://example.org:443/valves', times: 2)
+  end
+
+  def test_post_csrf_timeout_does_not_multiply_retries
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_timeout
+    assert_raises(BazaRb::TimedOut) do
+      BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0
+      ).lock('simple', 'owner')
+    end
+    assert_requested(:get, 'https://example.org:443/csrf', times: 3)
+  end
+
+  def test_post_includes_csrf_token_in_body
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token-xyz')
+    payload = nil
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return do |req|
+        payload = req.body
+        { status: 302, body: '' }
+      end
+    BazaRb.new(
+      'example.org', 443, '000',
+      loog: Loog::NULL, compress: false, timeout: 0.1, retries: 1, pause: 0
+    ).lock('simple', 'owner')
+    refute_nil(payload)
+    assert_includes(payload, '_csrf=token-xyz')
+    assert_includes(payload, 'owner=owner')
   end
 
   private
