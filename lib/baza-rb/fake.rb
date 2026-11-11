@@ -235,6 +235,7 @@ class BazaRb::Fake
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     42
   end
 

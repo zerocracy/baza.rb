@@ -1077,10 +1077,31 @@ class TestBazaRbEdge < Minitest::Test
   end
 
   def test_fee_raises_when_summary_is_empty
-    assert_equal(
-      'The summary "" is empty',
-      assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    real = assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    assert_equal('The summary "" is empty', real)
+    assert_equal(real, assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, '', 42) }.message)
+  end
+
+  def test_fee_raises_when_summary_is_nil
+    real = assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, nil, 42) }.message
+    assert_equal('The "summary" is nil', real)
+    assert_equal(real, assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 1.0, nil, 42) }.message)
+  end
+
+  def test_fee_rejects_empty_summary_before_http
+    WebMock.disable_net_connect!
+    assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }
+    assert_not_requested(:post, 'https://example.org/account/fee')
+  end
+
+  def test_fee_accepts_whitespace_only_summary
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    stub_request(:post, 'https://example.org/account/fee').to_return(
+      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '7' }
     )
+    assert_equal(7, fake_baza(compress: false).fee('unknown', 1.0, ' ', 42))
+    assert_equal(42, BazaRb::Fake.new.fee('unknown', 1.0, ' ', 42))
   end
 
   def test_transfer_works_with_bigdecimal
