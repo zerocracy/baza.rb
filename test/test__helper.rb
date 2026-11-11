@@ -36,18 +36,14 @@ require 'webmock/minitest'
 
 ENV['RACK_ENV'] = 'test'
 
-# Cancels tests that exceed their duration limit.
+# Cancels any test that runs longer than one minute.
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 module Deadline
   def run
-    max = deadline
+    max = 180
     Timeout.timeout(max, nil, "test #{name} took longer than #{max} seconds") { super }
-  end
-
-  def deadline
-    180
   end
 end
 Minitest::Test.prepend(Deadline)
