@@ -39,6 +39,20 @@ class TestFake < Minitest::Test
     )
   end
 
+  def test_push_raises_when_name_is_nil
+    assert_equal(
+      'The "name" of the job is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.push(nil, 'test-data', []) }.message
+    )
+  end
+
+  def test_push_raises_when_name_is_empty
+    assert_equal(
+      'The "name" of the job may not be empty',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.push('', 'test-data', []) }.message
+    )
+  end
+
   def test_finished
     assert(BazaRb::Fake.new.finished?(42))
   end
@@ -356,6 +370,48 @@ class TestFake < Minitest::Test
     assert_equal(
       'The owner "test-owner\nbad value" is not valid',
       assert_raises(RuntimeError) { BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value") }.message
+    )
+  end
+
+  def test_nil_name_is_rejected_by_every_method
+    baza = BazaRb::Fake.new
+    meta = []
+    [
+      ['The "name" of the job is nil', proc { baza.push(nil, 'test-data', meta) }],
+      ['The "pname" of the product is nil', proc { baza.lock(nil, 'test-owner') }],
+      ['The "pname" of the job is nil', proc { baza.unlock(nil, 'test-owner') }],
+      ['The "name" of the job is nil', proc { baza.recent(nil) }],
+      ['The "pname" of the product is nil', proc { baza.name_exists?(nil) }],
+      ['The "pname" is nil', proc { baza.durable_find(nil, 'remote.bin') }],
+      ['The "pname" of the durable is nil', proc { baza.durable_place(nil, 'unused.bin') }],
+      ['The "pname" is nil', proc { baza.enter(nil, 'test-badge', 'test-reason', 42) { 'ignored' } }]
+    ].each do |message, call|
+      assert_equal(message, assert_raises(RuntimeError, &call).message)
+    end
+  end
+
+  def test_empty_name_is_rejected_by_every_method
+    baza = BazaRb::Fake.new
+    meta = []
+    [
+      ['The "name" of the job may not be empty', proc { baza.push('', 'test-data', meta) }],
+      ['The "pname" of the product may not be empty', proc { baza.lock('', 'test-owner') }],
+      ['The "pname" of the job may not be empty', proc { baza.unlock('', 'test-owner') }],
+      ['The "name" of the job may not be empty', proc { baza.recent('') }],
+      ['The "pname" of the product may not be empty', proc { baza.name_exists?('') }],
+      ['The "pname" may not be empty', proc { baza.durable_find('', 'remote.bin') }],
+      ['The "pname" of the durable may not be empty', proc { baza.durable_place('', 'unused.bin') }],
+      ['The "pname" may not be empty', proc { baza.enter('', 'test-badge', 'test-reason', 42) { 'ignored' } }]
+    ].each do |message, call|
+      assert_equal(message, assert_raises(RuntimeError, &call).message)
+    end
+  end
+
+  def test_name_too_long_is_rejected
+    name = 'a' * 33
+    assert_equal(
+      "The name #{name.inspect} is too long",
+      assert_raises(RuntimeError) { BazaRb::Fake.new.push(name, 'test-data', []) }.message
     )
   end
 
