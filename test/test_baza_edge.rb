@@ -646,6 +646,30 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # A 302 with no body means "come back later", not "the file is empty":
+  # download() must skip it instead of treating the empty slice as content.
+  def test_download_skips_blank_response
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      attempts = 0
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return do |_request|
+          attempts += 1
+          if attempts < 2
+            { status: 302, body: '', headers: { 'Location' => 'https://example.org:443/elsewhere' } }
+          else
+            { status: 200, body: 'content', headers: {} }
+          end
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
+      assert_equal(2, attempts, 'the blank response must be skipped, not retried as a failure')
+      assert_equal('content', File.read(file), 'the skipped response must not leave an empty file')
+    end
+  end
+
   # Reproduces zerocracy/baza.rb#289: BazaRb#download never retries on
   # timeout because checked() is called outside attempt. After the fix,
   # a libcurl operation_timedout on the first GET re-raises BazaRb::TimedOut
