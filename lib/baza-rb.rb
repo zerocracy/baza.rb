@@ -198,13 +198,18 @@ class BazaRb
   # @param [Integer] id The ID of the job on the server
   # @return [Integer] The exit code
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
+  # @raise [RuntimeError] If the response is not a decimal integer
   def exit_code(id)
     raise(RuntimeError, 'The ID of the job is nil') if id.nil?
     raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
     raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     code = 0
     elapsed(@loog, level: Logger::INFO) do
-      code = get(home.append('exit').append("#{id}.txt")).body.to_i
+      body = get(home.append('exit').append("#{id}.txt")).body.to_s.b
+      unless body.match?(/\A-?[0-9]+\z/)
+        raise(RuntimeError, 'Invalid exit code response: expected a decimal integer')
+      end
+      code = Integer(body, 10)
       throw(:"The exit code of the job ##{id} is #{code}")
     end
     code
@@ -272,6 +277,7 @@ class BazaRb
   # @param [String] name The name of the job on the server
   # @return [Integer] The ID of the job on the server
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
+  # @raise [RuntimeError] If the response is not a positive decimal ID
   def recent(name)
     raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
@@ -279,7 +285,11 @@ class BazaRb
     raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
     job = nil
     elapsed(@loog, level: Logger::INFO) do
-      job = get(home.append('recent').append("#{name}.txt")).body.to_i
+      body = get(home.append('recent').append("#{name}.txt")).body.to_s.b
+      unless body.match?(/\A[1-9][0-9]*\z/)
+        raise(RuntimeError, 'Invalid recent job ID response: expected a positive decimal ID')
+      end
+      job = Integer(body, 10)
       throw(:"The recent \"#{name}\" job's ID is ##{job} at #{@host}")
     end
     job
@@ -471,7 +481,7 @@ class BazaRb
       raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
       raise(RuntimeError, 'The ID must be positive') unless job.positive?
     end
-    amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
+    amt = decimal(amount)
     id = nil
     body = { 'human' => recipient, 'amount' => amt, 'summary' => summary }
     body['job'] = job unless job.nil?
@@ -504,7 +514,7 @@ class BazaRb
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
-    amt = amount.is_a?(BigDecimal) ? amount.truncate(6).to_s('F') : format('%0.6f', amount)
+    amt = decimal(amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       id = post(
@@ -760,16 +770,11 @@ class BazaRb
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
   def post(uri, params, allowed = [302])
+    body = params.merge('_csrf' => csrf).sort.to_h
     attempt do
       checked(
         retry_on do
-          Typhoeus::Request.post(
-            uri.to_s,
-            body: params.merge('_csrf' => csrf).sort.to_h,
-            headers:,
-            connecttimeout: @timeout,
-            timeout: @timeout
-          )
+          Typhoeus::Request.post(uri.to_s, body:, headers:, connecttimeout: @timeout, timeout: @timeout)
         end,
         allowed
       )
@@ -787,6 +792,7 @@ class BazaRb
     FileUtils.touch(file)
     chunk = 0
     blanks = [204, 302]
+    modes = { 200 => 'wb', 206 => 'ab' }
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice = ''
@@ -836,7 +842,7 @@ class BazaRb
             raise(BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})")
           end
         end
-        File.open(file, 'ab') do |f|
+        File.open(file, modes.fetch(ret.code)) do |f|
           msg << "added to existing #{File.size(file)} bytes"
           f.write(slice)
         end
@@ -921,6 +927,7 @@ class BazaRb
           rewinds += 1
           raise if rewinds > @retries
           target = match[1].to_i
+          raise if chunk_size * target >= total
           @loog.info(
             "Server lost upload state at chunk ##{chunk}, " \
             "restarting from chunk ##{target} (rewind no.#{rewinds})"
@@ -936,8 +943,7 @@ class BazaRb
             "PUT #{uri.to_uri.path} #{ret.code}",
             ("gzipped #{slice.bytesize} bytes" if params[:headers]['Content-Encoding'] == 'gzip'),
             "sent #{params[:body].bytesize} bytes",
-            ("chunk ##{chunk}" if params[:headers]['X-Zerocracy-Chunk']),
-            ('no chunks' unless params[:headers]['X-Zerocracy-Chunk'])
+            params[:headers]['X-Zerocracy-Chunk'] ? "chunk ##{chunk}" : 'no chunks'
           ].compact.join(', ')
         )
         break if slice.empty?
@@ -946,5 +952,17 @@ class BazaRb
       end
       throw(:"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}")
     end
+  end
+
+  # Format a positive payment amount without rounding it up.
+  # @param [Float, BigDecimal] amount The amount to format
+  # @return [String] The amount truncated to six decimal places
+  # @raise [RuntimeError] If the truncated amount is zero
+  def decimal(amount)
+    value = BigDecimal(amount.to_s).truncate(6)
+    raise(RuntimeError, 'The "amount" must be positive') unless value.positive?
+    value = value.to_s('F')
+    value += '0' * (6 - value.split('.').last.length) if amount.is_a?(Float)
+    value
   end
 end

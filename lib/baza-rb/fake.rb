@@ -37,7 +37,7 @@ class BazaRb::Fake
   # @param [Integer] chunk_size Size of each chunk in bytes (accepted for signature parity with BazaRb#push)
   # @return [Integer] Always returns 42 as the fake job ID
   def push(name, data, meta, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
-    checkname(name)
+    checkname(name, 'The "name" of the job')
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The data must be non-empty') if data.empty?
     raise(RuntimeError, 'The meta must be an array') unless meta.is_a?(Array)
@@ -94,7 +94,7 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def lock(name, owner)
-    checkname(name)
+    checkname(name, 'The "pname" of the product')
     checkowner(owner)
   end
 
@@ -103,7 +103,7 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def unlock(name, owner)
-    checkname(name)
+    checkname(name, 'The "pname" of the job')
     checkowner(owner)
   end
 
@@ -112,7 +112,7 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @return [Integer] The ID of the job on the server
   def recent(name)
-    checkname(name)
+    checkname(name, 'The "name" of the job')
     42
   end
 
@@ -121,7 +121,7 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(name)
-    checkname(name)
+    checkname(name, 'The "pname" of the product')
     true
   end
 
@@ -131,7 +131,7 @@ class BazaRb::Fake
   # @param [String] file The file name
   # @return [Integer] Always returns 42 as the fake durable ID
   def durable_find(pname, file)
-    checkname(pname)
+    checkname(pname, 'The "pname"')
     raise(RuntimeError, 'The "file" is nil') if file.nil?
     raise(RuntimeError, 'The "file" may not be empty') if file.empty?
     42
@@ -143,7 +143,7 @@ class BazaRb::Fake
   # @param [String] file The path to the file to upload
   # @return [Integer] Always returns 42 as the fake durable ID
   def durable_place(pname, file)
-    checkname(pname)
+    checkname(pname, 'The "pname" of the durable')
     checkfile(file)
     42
   end
@@ -235,6 +235,7 @@ class BazaRb::Fake
     raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     42
   end
 
@@ -247,7 +248,7 @@ class BazaRb::Fake
   # @yield Block that computes the result
   # @return [String] Always executes and returns the block's result
   def enter(name, badge, why, job)
-    checkname(name)
+    checkname(name, 'The "pname"')
     raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
     raise(RuntimeError, 'The reason cannot be empty') if why.empty?
     checkid(job) unless job.nil?
@@ -263,7 +264,9 @@ class BazaRb::Fake
 
   private
 
-  def checkname(name)
+  def checkname(name, label)
+    raise(RuntimeError, "#{label} is nil") if name.nil?
+    raise(RuntimeError, "#{label} may not be empty") if name.empty?
     raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
   end
@@ -281,6 +284,5 @@ class BazaRb::Fake
 
   def checkfile(file)
     raise(RuntimeError, 'The file must exist') unless File.exist?(file)
-    raise(RuntimeError, 'The file must be non-empty') unless File.size(file).positive?
   end
 end
