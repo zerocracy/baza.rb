@@ -17,14 +17,14 @@ gem 'online', '~>0.1', require: false
 gem 'os', '~>1.1', require: false
 gem 'pact', '~>1.65', require: false
 gem 'pact-ffi', '0.5.8.1', require: false
-gem 'psych', '5.3.1', require: false
-gem 'puma', '~>7.0', require: false
+gem 'psych', '5.5.0', require: false
+gem 'puma', '~>8.0', require: false
 gem 'qbash', '~>0.4', require: false
 gem 'rack', '~>3.1', require: false
 gem 'rackup', '~>2.2', require: false
 gem 'rake', '~>13.2', require: false
 gem 'random-port', '~>0.7', require: false
-gem 'rdoc', '7.1.0', require: false
+gem 'rdoc', '8.1.0', require: false
 gem 'rubocop', '~>1.73', require: false
 gem 'rubocop-elegant', '~>0.5', require: false
 gem 'rubocop-minitest', '~>0.38', require: false
