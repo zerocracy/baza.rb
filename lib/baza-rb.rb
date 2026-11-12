@@ -698,6 +698,7 @@ class BazaRb
       @loog.error(msg)
       raise(TimedOut, msg)
     end
+    reject(ret, mtd, url)
     log = "#{mtd} #{url} -> #{ret.code} (#{format('%0.2f', ret.total_time)}s)"
     if allowed.include?(ret.code)
       @loog.debug(log)
@@ -722,6 +723,19 @@ class BazaRb
     msg += hint(ret)
     @loog.error(msg)
     raise(ret.code.zero? ? ConnectionFailed : ServerFailure, msg)
+  end
+
+  # Raise ConnectionFailed when libcurl reported a transport-level failure,
+  # even if the HTTP status itself is allowed (see #460).
+  #
+  # @param [Typhoeus::Response] ret The response
+  # @param [String] mtd The HTTP method
+  # @param [String] url The effective URL
+  def reject(ret, mtd, url)
+    return if ret.return_code.nil? || ret.return_code == :ok
+    msg = "#{mtd} #{url} failed with r:#{ret.return_code}, m:#{ret.return_message}"
+    @loog.error(msg)
+    raise(ConnectionFailed, msg)
   end
 
   # Build a human hint explaining a failing HTTP response code.
