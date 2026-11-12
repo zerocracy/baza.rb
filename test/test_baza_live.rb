@@ -33,13 +33,6 @@ class TestBazaLive < Minitest::Test
 
   LIVE = BazaRb.new(HOST, PORT, TOKEN, loog: Loog::NULL)
 
-  JOB_TIMEOUT = 15 * 60
-
-  def deadline
-    return super unless name == 'test_live_full_cycle'
-    super + JOB_TIMEOUT
-  end
-
   def test_live_full_cycle
     WebMock.enable_net_connect!
     skip('We are offline') unless connected?
@@ -52,7 +45,7 @@ class TestBazaLive < Minitest::Test
     assert_predicate(LIVE.recent(n), :positive?)
     id = LIVE.recent(n)
     assert(
-      wait_for(JOB_TIMEOUT) do
+      wait_for(15 * 60) do
         sleep(5)
         LIVE.finished?(id)
       end,
