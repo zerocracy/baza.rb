@@ -1296,6 +1296,74 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_upload_rejects_hint_that_skips_unsent_data
+    WebMock.disable_net_connect!
+    received = []
+    stub_request(:put, 'https://example.org:443/durables/42').to_return do |request|
+      chunk = request.headers.fetch('X-Zerocracy-Chunk')
+      received << chunk
+      if chunk == '0'
+        { status: 400, headers: { 'X-Zerocracy-Flash' => 'Expecting chunk #2, received #0' } }
+      else
+        { status: 200 }
+      end
+    end
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'payload')
+      File.binwrite(file, 'ABC')
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 1, pause: 0)
+      assert_match(
+        /Expecting chunk #2/,
+        assert_raises(BazaRb::ServerFailure) { baza.durable_save(42, file, chunk_size: 1) }.message
+      )
+    end
+    assert_equal(['0'], received)
+  end
+
+  def test_upload_resumes_the_next_chunk
+    WebMock.disable_net_connect!
+    received = []
+    stub_request(:put, 'https://example.org:443/durables/42').to_return do |request|
+      chunk = request.headers.fetch('X-Zerocracy-Chunk')
+      received << chunk
+      if chunk == '0'
+        { status: 400, headers: { 'X-Zerocracy-Flash' => 'Expecting chunk #1, received #0' } }
+      else
+        { status: 200 }
+      end
+    end
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'payload')
+      File.binwrite(file, 'ABC')
+      BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 1, pause: 0)
+        .durable_save(42, file, chunk_size: 1)
+    end
+    assert_equal(%w[0 1 2 3], received)
+  end
+
+  def test_upload_resumes_past_a_previous_rewind
+    WebMock.disable_net_connect!
+    received = []
+    stub_request(:put, 'https://example.org:443/durables/42').to_return do |request|
+      received << request.headers.fetch('X-Zerocracy-Chunk')
+      case received.length
+      when 3
+        { status: 400, headers: { 'X-Zerocracy-Flash' => 'Expecting chunk #0, received #2' } }
+      when 4
+        { status: 400, headers: { 'X-Zerocracy-Flash' => 'Expecting chunk #2, received #0' } }
+      else
+        { status: 200 }
+      end
+    end
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'payload')
+      File.binwrite(file, 'ABC')
+      BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+        .durable_save(42, file, chunk_size: 1)
+    end
+    assert_equal(%w[0 1 2 0 2 3], received)
+  end
+
   # Covers the out-of-range chunk rewind rejection in BazaRb#upload:
   # when the server responds with a chunk number at or past EOF, the upload
   # must fail with BazaRb::ServerFailure instead of seeking past EOF, sending
