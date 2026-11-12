@@ -821,6 +821,78 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries on POST')
   end
 
+  # Reproduces zerocracy/baza.rb#451: HTTP 408 Request Timeout is a transient
+  # server-side failure, so it must be retried like 429 and 5xx responses.
+  def test_get_retries_on_request_timeout
+    WebMock.disable_net_connect!
+    attempts = 0
+    stub_request(:get, 'https://example.org:443/whoami')
+      .to_return do |_request|
+        attempts += 1
+        if attempts < 2
+          { status: 408, body: 'Request Timeout' }
+        else
+          { status: 200, body: 'jeff' }
+        end
+      end
+    assert_equal('jeff', BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 1, pause: 0).whoami)
+    assert_equal(2, attempts, 'Expected 2 HTTP calls due to 408 retries')
+  end
+
+  def test_request_timeout_exhausts_retries
+    WebMock.disable_net_connect!
+    attempts = 0
+    stub_request(:get, 'https://example.org:443/whoami')
+      .to_return do |_request|
+        attempts += 1
+        { status: 408, body: 'Request Timeout' }
+      end
+    assert_includes(
+      assert_raises(BazaRb::ServerFailure) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 1, pause: 0).whoami
+      end.message,
+      'Invalid response code #408'
+    )
+    assert_equal(2, attempts, 'Expected two HTTP calls before giving up')
+  end
+
+  def test_request_timeout_with_zero_retries
+    WebMock.disable_net_connect!
+    attempts = 0
+    stub_request(:get, 'https://example.org:443/whoami')
+      .to_return do |_request|
+        attempts += 1
+        { status: 408, body: 'Request Timeout' }
+      end
+    assert_includes(
+      assert_raises(BazaRb::ServerFailure) do
+        BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 0, pause: 0).whoami
+      end.message,
+      'Invalid response code #408'
+    )
+    assert_equal(1, attempts, 'Expected a single HTTP call when retries are zero')
+  end
+
+  def test_post_retries_on_request_timeout
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    attempts = 0
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return do |_request|
+        attempts += 1
+        if attempts < 2
+          { status: 408, body: 'Request Timeout' }
+        else
+          { status: 302, body: '' }
+        end
+      end
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 1, pause: 0).lock(
+      'simple',
+      'owner'
+    )
+    assert_equal(2, attempts, 'Expected 2 HTTP calls due to 408 retries on POST')
+  end
+
   # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and
