@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 require 'factbase'
+require 'fileutils'
 require_relative '../baza-rb'
 require_relative 'version'
 
@@ -165,6 +166,7 @@ class BazaRb::Fake
   def durable_load(id, file)
     checkid(id)
     raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    FileUtils.mkdir_p(File.dirname(file))
     File.write(file, '')
   end
 
