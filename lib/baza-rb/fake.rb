@@ -246,13 +246,13 @@ class BazaRb::Fake
   # @param [String] why The reason/description for entering this valve
   # @param [nil|Integer] job Optional job ID to associate with this valve
   # @yield Block that computes the result
-  # @return [String] Always executes and returns the block's result
+  # @return [String] Always executes and returns the block's result as a String
   def enter(name, badge, why, job)
     checkname(name, 'The "pname"')
     raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
     raise(RuntimeError, 'The reason cannot be empty') if why.empty?
     checkid(job) unless job.nil?
-    yield
+    yield.to_s
   end
 
   # Get CSRF token from the server for authenticated requests.
