@@ -32,6 +32,16 @@ class TestFake < Minitest::Test
     assert_equal(42, BazaRb::Fake.new.push('test-job', 'test-data', [], chunk_size: 1024))
   end
 
+  def test_fake_uploads_reject_invalid_chunk_sizes
+    fake = BazaRb::Fake.new
+    Tempfile.create('payload') do |file|
+      [0, -1, 1.5, '4', nil].each do |size|
+        assert_raises(RuntimeError) { fake.push('test-job', 'data', [], chunk_size: size) }
+        assert_raises(RuntimeError) { fake.durable_save(42, file.path, chunk_size: size) }
+      end
+    end
+  end
+
   def test_push_raises_when_data_is_nil
     assert_equal(
       'The "data" of the job is nil',
