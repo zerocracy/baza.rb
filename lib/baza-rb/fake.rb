@@ -213,7 +213,7 @@ class BazaRb::Fake
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
     checkid(job) unless job.nil?
     raise(RuntimeError, 'The "badge" must be a String') if !badge.nil? && !badge.is_a?(String)
-    raise(RuntimeError, 'The "amount" must be positive') if amount < BigDecimal('0.000001')
+    raise(RuntimeError, 'The "amount" must be positive') if BigDecimal(amount.to_s) < BigDecimal('0.000001')
     42
   end
 
@@ -237,7 +237,7 @@ class BazaRb::Fake
     raise(RuntimeError, 'The "job" must be positive') unless job.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
-    raise(RuntimeError, 'The "amount" must be positive') if amount < BigDecimal('0.000001')
+    raise(RuntimeError, 'The "amount" must be positive') if BigDecimal(amount.to_s) < BigDecimal('0.000001')
     42
   end
 

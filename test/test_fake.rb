@@ -282,7 +282,7 @@ class TestFake < Minitest::Test
   end
 
   def test_rejects_amounts_below_payment_precision
-    [0.0000001, 0.000000999, BigDecimal('0.0000001'), BigDecimal('0.000000999999999999999')].each do |amount|
+    [0.0000001, 0.000001.prev_float, BigDecimal('0.0000001'), BigDecimal('0.000000999999999999999')].each do |amount|
       [BazaRb.new('example.com', 443, 'test-token'), BazaRb::Fake.new].each do |baza|
         assert_equal(
           'The "amount" must be positive',
@@ -297,7 +297,7 @@ class TestFake < Minitest::Test
   end
 
   def test_accepts_smallest_payment_amount
-    [0.000001, BigDecimal('0.000001')].each do |amount|
+    [0.000001, 0.000001.next_float, BigDecimal('0.000001')].each do |amount|
       baza = BazaRb::Fake.new
       assert_equal(42, baza.transfer('recipient', amount, 'payment'))
       assert_equal(42, baza.fee('unknown', amount, 'payment', 42))
