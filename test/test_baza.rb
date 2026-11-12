@@ -75,6 +75,57 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_whoami_rejects_empty_body
+    stub_request(:get, 'http://127.0.0.1:8080/whoami')
+      .to_return(status: 200, body: '', headers: { 'Content-Type' => 'text/plain' })
+    assert_includes(
+      assert_raises(StandardError) { client(8080, pause: 0).whoami }.message,
+      "Invalid login received: ''"
+    )
+  end
+
+  def test_whoami_rejects_malformed_login
+    stub_request(:get, 'http://127.0.0.1:8080/whoami')
+      .to_return(status: 200, body: 'BAD LOGIN!', headers: { 'Content-Type' => 'text/plain' })
+    assert_includes(
+      assert_raises(StandardError) { client(8080, pause: 0).whoami }.message,
+      "Invalid login received: 'BAD LOGIN!'"
+    )
+  end
+
+  def test_whoami_rejects_login_with_spaces
+    stub_request(:get, 'http://127.0.0.1:8080/whoami')
+      .to_return(status: 200, body: 'jeff lebowski', headers: { 'Content-Type' => 'text/plain' })
+    assert_includes(
+      assert_raises(StandardError) { client(8080, pause: 0).whoami }.message,
+      "Invalid login received: 'jeff lebowski'"
+    )
+  end
+
+  def test_whoami_rejects_login_with_symbols
+    stub_request(:get, 'http://127.0.0.1:8080/whoami')
+      .to_return(status: 200, body: 'jeff@zerocracy', headers: { 'Content-Type' => 'text/plain' })
+    assert_includes(
+      assert_raises(StandardError) { client(8080, pause: 0).whoami }.message,
+      "Invalid login received: 'jeff@zerocracy'"
+    )
+  end
+
+  def test_whoami_rejects_login_with_newlines
+    stub_request(:get, 'http://127.0.0.1:8080/whoami')
+      .to_return(status: 200, body: "jeff\nlebowski", headers: { 'Content-Type' => 'text/plain' })
+    assert_includes(
+      assert_raises(StandardError) { client(8080, pause: 0).whoami }.message,
+      "Invalid login received: 'jeff\nlebowski'"
+    )
+  end
+
+  def test_whoami_with_exclamation_mark
+    stub_request(:get, 'http://127.0.0.1:8080/whoami')
+      .to_return(status: 200, body: '!tester', headers: { 'Content-Type' => 'text/plain' })
+    assert_equal('!tester', client(8080, pause: 0).whoami)
+  end
+
   def test_reads_balance
     interaction
       .given('user is authenticated')
