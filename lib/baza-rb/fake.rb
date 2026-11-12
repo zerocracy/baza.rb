@@ -283,6 +283,7 @@ class BazaRb::Fake
   end
 
   def checkfile(file)
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
     raise(RuntimeError, 'The file must exist') unless File.exist?(file)
   end
 end
