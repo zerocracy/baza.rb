@@ -235,6 +235,66 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_transfer_rejects_positive_infinity_amount
+    baza = client(8080)
+    assert_equal(
+      'The amount must be finite, but Infinity provided',
+      assert_raises(RuntimeError) do
+        baza.transfer('jeff', Float::INFINITY, 'for fun')
+      end.message
+    )
+  end
+
+  def test_transfer_rejects_negative_infinity_amount
+    baza = client(8080)
+    assert_equal(
+      'The amount must be finite, but -Infinity provided',
+      assert_raises(RuntimeError) do
+        baza.transfer('jeff', -Float::INFINITY, 'for fun')
+      end.message
+    )
+  end
+
+  def test_transfer_rejects_nan_amount
+    baza = client(8080)
+    assert_equal(
+      'The amount must be finite, but NaN provided',
+      assert_raises(RuntimeError) do
+        baza.transfer('jeff', Float::NAN, 'for fun')
+      end.message
+    )
+  end
+
+  def test_fee_rejects_positive_infinity_amount
+    baza = client(8080)
+    assert_equal(
+      'The amount must be finite, but Infinity provided',
+      assert_raises(RuntimeError) do
+        baza.fee('unknown', Float::INFINITY, 'the summary', 776)
+      end.message
+    )
+  end
+
+  def test_fee_rejects_negative_infinity_amount
+    baza = client(8080)
+    assert_equal(
+      'The amount must be finite, but -Infinity provided',
+      assert_raises(RuntimeError) do
+        baza.fee('unknown', -Float::INFINITY, 'the summary', 776)
+      end.message
+    )
+  end
+
+  def test_fee_rejects_nan_amount
+    baza = client(8080)
+    assert_equal(
+      'The amount must be finite, but NaN provided',
+      assert_raises(RuntimeError) do
+        baza.fee('unknown', Float::NAN, 'the summary', 776)
+      end.message
+    )
+  end
+
   def test_checks_whether_job_is_finished
     interaction
       .given('user is authenticated')
