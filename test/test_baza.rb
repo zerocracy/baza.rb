@@ -235,6 +235,39 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_transfer_rejects_non_string_summary
+    baza = BazaRb.new('127.0.0.1', 80, '000')
+    [42, :for_fun, ['for fun'], { a: 1 }].each do |summary|
+      assert_equal(
+        'Summary must be a String',
+        assert_raises(ArgumentError) { baza.transfer('jeff', 42.5, summary) }.message
+      )
+    end
+  end
+
+  def test_transfer_rejects_empty_summary
+    baza = BazaRb.new('127.0.0.1', 80, '000')
+    assert_equal('The summary "" is empty', assert_raises(RuntimeError) { baza.transfer('jeff', 42.5, '') }.message)
+  end
+
+  def test_fee_rejects_non_string_summary
+    baza = BazaRb.new('127.0.0.1', 80, '000')
+    [42, :fee, ['summary'], { a: 1 }].each do |summary|
+      assert_equal(
+        'Summary must be a String',
+        assert_raises(ArgumentError) { baza.fee('unknown', 42.77, summary, 776) }.message
+      )
+    end
+  end
+
+  def test_fee_rejects_empty_summary
+    baza = BazaRb.new('127.0.0.1', 80, '000')
+    assert_equal(
+      'The summary "" is empty',
+      assert_raises(RuntimeError) { baza.fee('unknown', 42.77, '', 776) }.message
+    )
+  end
+
   def test_checks_whether_job_is_finished
     interaction
       .given('user is authenticated')
