@@ -51,7 +51,7 @@ GEM
       tago (~> 0.1)
     ellipsized (0.3.0)
     erb (6.0.7)
-    ethon (0.19.1)
+    ethon (0.19.2)
       ffi (>= 1.15.0)
       logger
     expgen (0.1.1)
@@ -160,7 +160,7 @@ GEM
       date
       stringio
     public_suffix (7.0.5)
-    puma (8.0.2)
+    puma (8.1.1)
       nio4r (~> 2.0)
     qbash (0.8.4)
       backtrace (> 0)
