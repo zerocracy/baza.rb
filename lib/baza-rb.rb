@@ -113,6 +113,7 @@ class BazaRb
   # @raise [ServerFailure] If the push operation fails
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
     raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
@@ -240,6 +241,7 @@ class BazaRb
   # @raise [ServerFailure] If the lock operation fails
   def lock(pname, owner)
     raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
@@ -261,6 +263,7 @@ class BazaRb
   # @raise [ServerFailure] If the unlock operation fails
   def unlock(pname, owner)
     raise(RuntimeError, 'The "pname" of the job is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "pname" of the job may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
@@ -280,6 +283,7 @@ class BazaRb
   # @raise [RuntimeError] If the response is not a positive decimal ID
   def recent(name)
     raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
+    raise(RuntimeError, 'The name must be a String') unless name.is_a?(String)
     raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
     raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
@@ -301,6 +305,7 @@ class BazaRb
   # @return [Boolean] TRUE if such name exists
   def name_exists?(pname)
     raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
@@ -325,6 +330,7 @@ class BazaRb
   # @raise [ServerFailure] If the upload fails
   def durable_place(pname, file)
     raise(RuntimeError, 'The "pname" of the durable is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "pname" of the durable may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
@@ -430,6 +436,7 @@ class BazaRb
   # @raise [ServerFailure] If the server returns an unexpected response status
   def durable_find(pname, file)
     raise(RuntimeError, 'The "pname" is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
     raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
@@ -545,6 +552,7 @@ class BazaRb
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
     raise(RuntimeError, 'The "pname" is nil') if pname.nil?
+    raise(RuntimeError, 'The name must be a String') unless pname.is_a?(String)
     raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
     raise(RuntimeError, 'The "badge" is nil') if badge.nil?
     raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?

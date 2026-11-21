@@ -753,6 +753,71 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_name_exists_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal('The name must be a String', assert_raises(RuntimeError) { baza.name_exists?(bad) }.message)
+    end
+  end
+
+  def test_lock_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal('The name must be a String', assert_raises(RuntimeError) { baza.lock(bad, 'owner') }.message)
+    end
+  end
+
+  def test_unlock_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal('The name must be a String', assert_raises(RuntimeError) { baza.unlock(bad, 'owner') }.message)
+    end
+  end
+
+  def test_recent_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal('The name must be a String', assert_raises(RuntimeError) { baza.recent(bad) }.message)
+    end
+  end
+
+  def test_durable_find_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        'The name must be a String',
+        assert_raises(RuntimeError) { baza.durable_find(bad, 'bar.txt') }.message
+      )
+    end
+  end
+
+  def test_durable_place_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        'The name must be a String',
+        assert_raises(RuntimeError) { baza.durable_place(bad, 'bar.txt') }.message
+      )
+    end
+  end
+
+  def test_enter_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal(
+        'The name must be a String',
+        assert_raises(RuntimeError) { baza.enter(bad, 'badge', 'why', nil) { 'res' } }.message
+      )
+    end
+  end
+
+  def test_push_rejects_non_string
+    baza = BazaRb.new('example.org', 443, 'token')
+    [42, :symbol, []].each do |bad|
+      assert_equal('The name must be a String', assert_raises(RuntimeError) { baza.push(bad, 'data', []) }.message)
+    end
+  end
+
   private
 
   def client(port, pause: 1)
