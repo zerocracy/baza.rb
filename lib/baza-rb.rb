@@ -894,6 +894,7 @@ class BazaRb
     }
     total = File.size(file)
     chunk = 0
+    frontier = 0
     sent = 0
     rewinds = 0
     elapsed(@loog, level: Logger::INFO) do
@@ -911,6 +912,7 @@ class BazaRb
         params[:body] = slice
         params[:headers]['Content-Length'] = slice.bytesize.to_s
         params = zipped(params) if @compress
+        frontier = [frontier, chunk].max
         begin
           ret =
             attempt do
@@ -927,6 +929,7 @@ class BazaRb
           raise if rewinds > @retries
           target = match[1].to_i
           raise if chunk_size * target >= total
+          raise if target > frontier + 1
           @loog.info(
             "Server lost upload state at chunk ##{chunk}, " \
             "restarting from chunk ##{target} (rewind no.#{rewinds})"
