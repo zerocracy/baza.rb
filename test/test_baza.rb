@@ -255,6 +255,46 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_finished_returns_true_when_completed
+    stub_request(:get, 'http://127.0.0.1:8080/finished/101')
+      .to_return(status: 200, body: 'yes', headers: { 'Content-Type' => 'text/plain' })
+    assert(client(8080).finished?(101))
+  end
+
+  def test_finished_returns_false_when_running
+    stub_request(:get, 'http://127.0.0.1:8080/finished/102')
+      .to_return(status: 200, body: 'started 123', headers: { 'Content-Type' => 'text/plain' })
+    refute(client(8080).finished?(102))
+  end
+
+  def test_finished_raises_on_empty_response
+    stub_request(:get, 'http://127.0.0.1:8080/finished/103')
+      .to_return(status: 200, body: '', headers: { 'Content-Type' => 'text/plain' })
+    assert_equal(
+      "Invalid response body from /finished/103: ''",
+      assert_raises(RuntimeError) { client(8080).finished?(103) }.message
+    )
+  end
+
+  def test_finished_raises_on_html_error_response
+    html = '<html><body>500 Internal Server Error</body></html>'
+    stub_request(:get, 'http://127.0.0.1:8080/finished/104')
+      .to_return(status: 200, body: html, headers: { 'Content-Type' => 'text/html' })
+    assert_equal(
+      "Invalid response body from /finished/104: '#{html}'",
+      assert_raises(RuntimeError) { client(8080).finished?(104) }.message
+    )
+  end
+
+  def test_finished_raises_on_unexpected_response
+    stub_request(:get, 'http://127.0.0.1:8080/finished/105')
+      .to_return(status: 200, body: 'unexpected response', headers: { 'Content-Type' => 'text/plain' })
+    assert_equal(
+      "Invalid response body from /finished/105: 'unexpected response'",
+      assert_raises(RuntimeError) { client(8080).finished?(105) }.message
+    )
+  end
+
   def test_reads_verification_verdict
     interaction
       .given('user is authenticated')
