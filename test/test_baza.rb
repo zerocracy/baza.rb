@@ -753,6 +753,56 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_pause_preserves_fractional_value
+    baza = BazaRb.new('127.0.0.1', 8080, 'test-token', pause: 0.5)
+    assert_in_delta(1.0, baza.__send__(:backoff, 1))
+    assert_in_delta(2.0, baza.__send__(:backoff, 2))
+    assert_in_delta(4.0, baza.__send__(:backoff, 3))
+    refute_equal(0, baza.__send__(:backoff, 1))
+  end
+
+  def test_backoff_calculates_fractional_delay
+    baza = BazaRb.new('127.0.0.1', 8080, 'test-token', pause: 0.25)
+    assert_in_delta(0.25, baza.__send__(:backoff, 0))
+    assert_in_delta(0.5, baza.__send__(:backoff, 1))
+    assert_in_delta(1.0, baza.__send__(:backoff, 2))
+  end
+
+  def test_pause_from_env_variable
+    before = ENV.fetch('BAZA_BACKOFF', nil)
+    ENV['BAZA_BACKOFF'] = '0.5'
+    baza = BazaRb.new('127.0.0.1', 8080, 'test-token')
+    assert_in_delta(1.0, baza.__send__(:backoff, 1))
+    assert_in_delta(2.0, baza.__send__(:backoff, 2))
+  ensure
+    if before.nil?
+      ENV.delete('BAZA_BACKOFF')
+    else
+      ENV['BAZA_BACKOFF'] = before
+    end
+  end
+
+  def test_backoff_with_integer_pause
+    baza = BazaRb.new('127.0.0.1', 8080, 'test-token', pause: 2)
+    assert_in_delta(4.0, baza.__send__(:backoff, 1))
+    assert_in_delta(8.0, baza.__send__(:backoff, 2))
+  end
+
+  def test_pause_in_request
+    interaction
+      .given('user is authenticated')
+      .upon_receiving('a whoami request with fractional pause')
+      .with_request(method: 'GET', path: '/whoami')
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^[a-z0-9-]+$/, 'jeff'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    execute do |server|
+      assert_equal('jeff', client(server.port, pause: 0.5).whoami)
+    end
+  end
+
   private
 
   def client(port, pause: 1)
