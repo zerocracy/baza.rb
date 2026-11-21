@@ -764,6 +764,22 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_download_rejects_total_with_space
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0-4/12 34' })
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.__send__(:download, fake_baza.__send__(:home).append('file'), file)
+        end.message,
+        'Total size is not valid ("12 34")'
+      )
+    end
+  end
+
   def test_download_rejects_range_end_with_newline
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
