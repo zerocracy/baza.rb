@@ -188,7 +188,7 @@ class TestFake < Minitest::Test
   def test_durable_load_creates_target
     baza = BazaRb::Fake.new
     Dir.mktmpdir do |tmp|
-      target = File.join(tmp, 'not-yet-written.bin')
+      target = File.join(tmp, 'new', 'nested', 'not-yet-written.bin')
       refute_path_exists(target)
       baza.durable_load(42, target)
       assert_path_exists(target)
