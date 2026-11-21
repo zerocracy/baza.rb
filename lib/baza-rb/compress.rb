@@ -32,7 +32,7 @@ class BazaRb
         raise(BadCompression, "Uncompressed size #{unzipped.length} exceeds limit #{LIMIT_UNCOMPRESSED}")
       end
       unzipped.string
-    rescue Zlib::GzipFile::Error => e
+    rescue Zlib::DataError, Zlib::GzipFile::Error => e
       raise(BadCompression, "Failed to unzip #{data.bytesize} bytes: #{e.message}")
     end
 
