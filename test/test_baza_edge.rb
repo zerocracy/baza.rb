@@ -870,31 +870,48 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal(3, tries)
   end
 
-  def test_attempt_passes_pause_to_retries
-    baza = BazaRb.new('example.org', 443, '000', retries: 3, pause: 2, loog: Loog::NULL)
-    opts = nil
-    baza.define_singleton_method(:with_retries) do |options, &block|
-      opts = options
-      block.call(1)
+  def test_attempt_and_retry_on_use_same_backoff
+    first = BazaRb.new('example.org', 443, '000', retries: 3, pause: 2, loog: Loog::NULL)
+    asleeps = []
+    first.define_singleton_method(:sleep) { |sec| asleeps << sec }
+    tries = 0
+    first.__send__(:attempt) do
+      tries += 1
+      raise(BazaRb::TimedOut, 'connection timed out') if tries <= 3
+      :ok
     end
-    baza.__send__(:attempt) { :ok }
-    refute_nil(opts)
-    assert_equal(4, opts[:max_tries])
-    assert_equal(2, opts[:base_sleep_seconds])
-    assert_equal(16, opts[:max_sleep_seconds])
+    second = BazaRb.new('example.org', 443, '000', retries: 3, pause: 2, loog: Loog::NULL)
+    rsleeps = []
+    second.define_singleton_method(:sleep) { |sec| rsleeps << sec }
+    calls = 0
+    second.__send__(:retry_on) do
+      calls += 1
+      Struct.new(:code).new(calls <= 3 ? 503 : 200)
+    end
+    assert_equal([4, 8, 16], asleeps)
+    assert_equal(rsleeps, asleeps)
   end
 
-  def test_attempt_defaults_with_zero_pause
-    baza = BazaRb.new('example.org', 443, '000', retries: 1, pause: 0, loog: Loog::NULL)
-    opts = nil
-    baza.define_singleton_method(:with_retries) do |options, &block|
-      opts = options
-      block.call(1)
+  def test_attempt_and_retry_on_zero_pause
+    first = BazaRb.new('example.org', 443, '000', retries: 3, pause: 0, loog: Loog::NULL)
+    asleeps = []
+    first.define_singleton_method(:sleep) { |sec| asleeps << sec }
+    tries = 0
+    first.__send__(:attempt) do
+      tries += 1
+      raise(BazaRb::TimedOut, 'connection timed out') if tries <= 3
+      :ok
     end
-    baza.__send__(:attempt) { :ok }
-    refute_nil(opts)
-    assert_equal(0, opts[:base_sleep_seconds])
-    assert_equal(0, opts[:max_sleep_seconds])
+    second = BazaRb.new('example.org', 443, '000', retries: 3, pause: 0, loog: Loog::NULL)
+    rsleeps = []
+    second.define_singleton_method(:sleep) { |sec| rsleeps << sec }
+    calls = 0
+    second.__send__(:retry_on) do
+      calls += 1
+      Struct.new(:code).new(calls <= 3 ? 503 : 200)
+    end
+    assert_empty(asleeps)
+    assert_empty(rsleeps)
   end
 
   def test_fee_raises_when_job_is_not_positive

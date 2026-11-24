@@ -10,7 +10,6 @@ require 'fileutils'
 require 'iri'
 require 'logger'
 require 'loog'
-require 'retries'
 require 'stringio'
 require 'tago'
 require 'tempfile'
@@ -625,13 +624,17 @@ class BazaRb
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
   def attempt(&)
-    with_retries(
-      max_tries: @retries + 1,
-      base_sleep_seconds: @pause,
-      max_sleep_seconds: [@pause * (2**@retries), @pause].max,
-      rescue: TimedOut,
-      &
-    )
+    attempt = 0
+    begin
+      yield(attempt + 1)
+    rescue TimedOut => e
+      raise if attempt >= @retries
+      attempt += 1
+      seconds = backoff(attempt)
+      @loog.info("Request timed out (#{e.message}), sleep #{seconds}s (attempt no.#{attempt})...")
+      sleep(seconds) unless @pause.zero?
+      retry
+    end
   end
 
   # Retry the HTTP request on rate-limiting (429) and server errors (>= 499).
