@@ -295,6 +295,18 @@ class TestBazaRb < Minitest::Test
     )
   end
 
+  def test_finished_raises_on_malformed_started
+    %w[startedgarbage started].push('started ').each_with_index do |body, idx|
+      id = 106 + idx
+      stub_request(:get, "http://127.0.0.1:8080/finished/#{id}")
+        .to_return(status: 200, body:, headers: { 'Content-Type' => 'text/plain' })
+      assert_equal(
+        "Invalid response body from /finished/#{id}: '#{body}'",
+        assert_raises(RuntimeError) { client(8080).finished?(id) }.message
+      )
+    end
+  end
+
   def test_reads_verification_verdict
     interaction
       .given('user is authenticated')

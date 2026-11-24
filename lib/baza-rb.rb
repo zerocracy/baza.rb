@@ -169,7 +169,7 @@ class BazaRb
       ret = get(home.append('finished').append(id))
       if ret.body == 'yes'
         fin = true
-      elsif ret.body.start_with?('started')
+      elsif ret.body.match?(/\Astarted .+\z/)
         fin = false
       else
         raise(RuntimeError, "Invalid response body from /finished/#{id}: '#{ret.body}'")
