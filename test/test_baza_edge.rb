@@ -712,6 +712,7 @@ class TestBazaRbEdge < Minitest::Test
 
   def test_rehost_is_thread_safe
     baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    mutex = baza.instance_variable_get(:@mutex)
     candidates = (1..16).map { |i| "server#{i}.example.org" }
     barrier = Queue.new
     mismatches = Queue.new
@@ -720,7 +721,13 @@ class TestBazaRbEdge < Minitest::Test
         barrier.pop
         ret = Struct.new(:headers).new({ 'X-Zerocracy-Host' => name })
         50.times do
-          h = URI(baza.__send__(:rehost, ret, baza.__send__(:home)).to_s).host
+          uri = baza.__send__(:home)
+          orig = uri.method(:host)
+          uri.define_singleton_method(:host) do |*args|
+            mismatches << [:unlocked, name] unless mutex.owned?
+            orig.call(*args)
+          end
+          h = URI(baza.__send__(:rehost, ret, uri).to_s).host
           mismatches << [name, h] if h != name
         end
       end
@@ -730,7 +737,7 @@ class TestBazaRbEdge < Minitest::Test
     end
     assert_empty(
       mismatches,
-      "Every returned URI should match the host installed by that call, got mismatches: #{mismatches.size}"
+      "Every returned URI should match the host installed by that call while holding @mutex, got: #{mismatches.size}"
     )
     assert_includes(
       candidates,
