@@ -1458,6 +1458,60 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(payload, 'owner=owner')
   end
 
+  def test_download_aborts_on_repeated_blank_responses
+    WebMock.disable_net_connect!
+    [204, 302].each do |code|
+      stub_request(:get, 'https://example.org:443/blank').to_return(status: code, body: '')
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'blank.txt')
+        assert_includes(
+          assert_raises(BazaRb::ServerFailure) do
+            baza.__send__(:download, baza.__send__(:home).append('blank'), file)
+          end.message,
+          "Too many blank (#{code})"
+        )
+      end
+      assert_requested(:get, 'https://example.org:443/blank', times: 3)
+      WebMock.reset!
+    end
+  end
+
+  def test_download_retries_blank_then_succeeds
+    WebMock.disable_net_connect!
+    calls = 0
+    stub_request(:get, 'https://example.org:443/eventual')
+      .to_return do
+        calls += 1
+        calls == 1 ? { status: 204, body: '' } : { status: 200, body: 'ready' }
+      end
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'eventual.txt')
+      baza.__send__(:download, baza.__send__(:home).append('eventual'), file)
+      assert_equal('ready', File.read(file))
+    end
+    assert_equal(2, calls)
+  end
+
+  def test_download_rejects_range_end_past_total
+    WebMock.disable_net_connect!
+    ['bytes 0-5/5', 'bytes 0-9/5'].each do |cr|
+      stub_request(:get, 'https://example.org:443/oob')
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => cr })
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'oob.txt')
+        assert_includes(
+          assert_raises(RuntimeError) do
+            fake_baza.__send__(:download, fake_baza.__send__(:home).append('oob'), file)
+          end.message,
+          'Range is not valid'
+        )
+      end
+      WebMock.reset!
+    end
+  end
+
   private
 
   def with_gzip(coding)
