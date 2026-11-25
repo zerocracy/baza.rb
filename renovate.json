@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "automerge": true,
   "extends": [
     "config:base"
   ],
@@ -15,13 +16,12 @@
       ]
     },
     {
+      "groupName": "SimpleCov coverage",
       "matchPackageNames": [
         "simplecov",
         "simplecov-cobertura"
-      ],
-      "groupName": "SimpleCov coverage"
+      ]
     }
   ],
-  "automerge": true,
   "platformAutomerge": false
 }
