@@ -1458,6 +1458,52 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(payload, 'owner=owner')
   end
 
+  def test_durable_place_validates_id_header
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'sample.txt')
+      File.write(file, 'hello')
+      stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+      [{}, { 'X-Zerocracy-DurableId' => 'abc' }, { 'X-Zerocracy-DurableId' => '-1' }].each do |hdrs|
+        stub_request(:post, 'https://example.org/durable-place').to_return(status: 302, headers: hdrs)
+        assert_raises(RuntimeError) { fake_baza(compress: false).durable_place('my-job', file) }
+      end
+      stub_request(:post, 'https://example.org/durable-place').to_return(
+        status: 302, headers: { 'X-Zerocracy-DurableId' => %w[41 42] }
+      )
+      assert_equal(42, fake_baza(compress: false).durable_place('my-job', file))
+    end
+  end
+
+  def test_payment_validates_receipt_id_header
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
+    bad = [{}, { 'X-Zerocracy-ReceiptId' => 'bad' }, { 'X-Zerocracy-ReceiptId' => '-1' }]
+    %w[/account/transfer /account/fee].each do |path|
+      bad.each do |hdrs|
+        stub_request(:post, "https://example.org#{path}").to_return(status: 302, headers: hdrs)
+        assert_raises(RuntimeError) do
+          if path.end_with?('transfer')
+            fake_baza(compress: false).transfer('jeff', 1.0, 'pay')
+          else
+            fake_baza(compress: false).fee('unknown', 1.0, 'pay', 42)
+          end
+        end
+      end
+      stub_request(:post, "https://example.org#{path}").to_return(
+        status: 302, headers: { 'X-Zerocracy-ReceiptId' => %w[7 8] }
+      )
+      assert_equal(
+        8,
+        if path.end_with?('transfer')
+          fake_baza(compress: false).transfer('jeff', 1.0, 'pay')
+        else
+          fake_baza(compress: false).fee('unknown', 1.0, 'pay', 42)
+        end
+      )
+    end
+  end
+
   private
 
   def with_gzip(coding)

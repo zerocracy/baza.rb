@@ -338,14 +338,17 @@ class BazaRb
     end
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('durable-place'),
-        {
-          'pname' => pname,
-          'file' => File.basename(file),
-          'zip' => File.open(file, 'rb')
-        }
-      ).headers['X-Zerocracy-DurableId'].to_i
+      id = headid(
+        post(
+          home.append('durable-place'),
+          {
+            'pname' => pname,
+            'file' => File.basename(file),
+            'zip' => File.open(file, 'rb')
+          }
+        ),
+        'X-Zerocracy-DurableId'
+      )
       throw(:"Durable ##{id} (#{file}, #{File.size(file)} bytes) placed for job \"#{pname}\" at #{@host}")
     end
     id
@@ -486,7 +489,7 @@ class BazaRb
     body['job'] = job unless job.nil?
     body['badge'] = badge unless badge.nil?
     elapsed(@loog, level: Logger::INFO) do
-      id = post(home.append('account').append('transfer'), body).headers['X-Zerocracy-ReceiptId'].to_i
+      id = headid(post(home.append('account').append('transfer'), body), 'X-Zerocracy-ReceiptId')
       throw(:"Transferred Ƶ#{amt} to @#{recipient} at #{@host}")
     end
     id
@@ -516,15 +519,18 @@ class BazaRb
     amt = decimal(amount)
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('account').append('fee'),
-        {
-          'amount' => amt,
-          'job' => job.to_s,
-          'summary' => summary,
-          'tab' => tab
-        }
-      ).headers['X-Zerocracy-ReceiptId'].to_i
+      id = headid(
+        post(
+          home.append('account').append('fee'),
+          {
+            'amount' => amt,
+            'job' => job.to_s,
+            'summary' => summary,
+            'tab' => tab
+          }
+        ),
+        'X-Zerocracy-ReceiptId'
+      )
       throw(:"Fee Ƶ#{amt} paid at #{@host}")
     end
     id
@@ -963,5 +969,21 @@ class BazaRb
     value = value.to_s('F')
     value += '0' * (6 - value.split('.').last.length) if amount.is_a?(Float)
     value
+  end
+
+  # Extract and validate a positive decimal ID from a response header.
+  #
+  # @param [Typhoeus::Response] ret The HTTP response
+  # @param [String] name The header name
+  # @return [Integer] The non-negative decimal ID
+  # @raise [RuntimeError] If the header is missing or not a non-negative decimal integer
+  def headid(ret, name)
+    raw = ret.headers&.[](name)
+    raw = raw.last if raw.is_a?(Array)
+    val = raw.to_s.b
+    unless val.match?(/\A[0-9]+\z/)
+      raise(RuntimeError, "Invalid #{name} header: #{raw.inspect} (expected a non-negative decimal ID)")
+    end
+    Integer(val, 10)
   end
 end
