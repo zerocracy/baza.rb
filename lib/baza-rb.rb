@@ -596,7 +596,7 @@ class BazaRb
   # @return [Iri] The updated URI object (or original if no valid header present)
   # @note Invalid hostnames are logged as warnings and ignored
   def rehost(ret, uri)
-    sticky = ret.headers && ret.headers['X-Zerocracy-Host']
+    sticky = header(ret.headers, 'X-Zerocracy-Host')
     return uri unless sticky
     return uri unless hostname?(sticky)
     host = sticky.strip.chomp('.')
@@ -614,6 +614,7 @@ class BazaRb
   # @param [String] name The hostname to validate
   # @return [Boolean] True if valid, false otherwise
   def hostname?(name)
+    return false unless name.is_a?(String)
     name = name.strip
     return false if name.empty? || name.bytesize > 253
     name.match?(/\A[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.?\z/)
@@ -821,12 +822,13 @@ class BazaRb
             )
           end
         rheaders = ret.headers || {}
-        gzipped = rheaders['Content-Encoding']&.casecmp?('gzip')
+        gzipped = header(rheaders, 'Content-Encoding')&.casecmp?('gzip')
+        crangeh = header(rheaders, 'Content-Range')
         msg = [
           "GET #{uri.to_uri.path} #{ret.code}",
           "#{slice.bytesize} bytes",
           ('in gzip' if gzipped),
-          ("ranged as #{rheaders['Content-Range'].inspect}" if rheaders['Content-Range'])
+          ("ranged as #{crangeh.inspect}" if crangeh)
         ]
         uri = rehost(ret, uri)
         if blanks.include?(ret.code)
@@ -855,14 +857,14 @@ class BazaRb
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
-        sleep(1) if rheaders['Content-Length'].to_i.zero?
+        sleep(1) if header(rheaders, 'Content-Length').to_i.zero?
       end
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
   end
 
   def crange(headers)
-    crange = headers['Content-Range']
+    crange = header(headers, 'Content-Range')
     raise(RuntimeError, 'Content-Range header is missing') if crange.nil?
     _, value = crange.split
     raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if value.nil?
@@ -963,5 +965,16 @@ class BazaRb
     value = value.to_s('F')
     value += '0' * (6 - value.split('.').last.length) if amount.is_a?(Float)
     value
+  end
+
+  # Extract a single string header value, taking the last entry for duplicate-header arrays.
+  #
+  # @param [Hash, nil] headers HTTP headers hash
+  # @param [String] name Header name
+  # @return [String, nil] Header value or nil
+  def header(headers, name)
+    val = headers && headers[name]
+    val = val.last if val.is_a?(Array)
+    val&.to_s
   end
 end
