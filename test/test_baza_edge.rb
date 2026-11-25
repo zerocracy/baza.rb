@@ -1458,6 +1458,16 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(payload, 'owner=owner')
   end
 
+  def test_enter_rejects_invalid_pname_and_badge
+    WebMock.disable_net_connect!
+    err = assert_raises(RuntimeError) { fake_baza.enter('Bad_Name', 'badge-1', 'why', nil) { 'ok' } }
+    assert_includes(err.message, 'is not valid')
+    err = assert_raises(RuntimeError) { fake_baza.enter('a' * 33, 'badge-1', 'why', nil) { 'ok' } }
+    assert_includes(err.message, 'is too long')
+    err = assert_raises(RuntimeError) { fake_baza.enter('good-name', 'bad/badge', 'why', nil) { 'ok' } }
+    assert_includes(err.message, 'is not valid')
+  end
+
   private
 
   def with_gzip(coding)
