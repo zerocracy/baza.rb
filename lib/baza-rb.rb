@@ -574,6 +574,9 @@ class BazaRb
     token = nil
     elapsed(@loog, level: Logger::INFO) do
       token = get(home.append('csrf')).body
+      if token.nil? || token.strip.empty?
+        raise(RuntimeError, 'Invalid CSRF token response: expected a non-empty token')
+      end
       throw(:"CSRF token retrieved (#{token.length} chars)")
     end
     token

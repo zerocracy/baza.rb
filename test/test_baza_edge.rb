@@ -1458,6 +1458,16 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(payload, 'owner=owner')
   end
 
+  def test_csrf_rejects_nil_and_empty_body
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(status: 200, body: nil)
+    err = assert_raises(RuntimeError) { fake_baza.csrf }
+    assert_includes(err.message, 'CSRF')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(status: 200, body: "  \n ")
+    err = assert_raises(RuntimeError) { fake_baza.csrf }
+    assert_includes(err.message, 'CSRF')
+  end
+
   private
 
   def with_gzip(coding)
