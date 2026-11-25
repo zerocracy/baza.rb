@@ -1458,6 +1458,27 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(payload, 'owner=owner')
   end
 
+  def test_non_string_arguments_raise_runtime_error
+    baza = fake_baza
+    [
+      ['The "name" of the job must be a String', proc { baza.push(123, 'data', []) }],
+      ['The "pname" of the product must be a String', proc { baza.lock(:foo, 'owner') }],
+      ['The "pname" of the job must be a String', proc { baza.unlock(123, 'owner') }],
+      ['The "name" of the job must be a String', proc { baza.recent(123) }],
+      ['The "pname" of the product must be a String', proc { baza.name_exists?(123) }],
+      ['The "pname" of the durable must be a String', proc { baza.durable_place(123, 'f') }],
+      ['The "file" of the durable must be a String', proc { baza.durable_place('job', 123) }],
+      ['The "pname" must be a String', proc { baza.durable_find(123, 'f') }],
+      ['The "file" must be a String', proc { baza.durable_find('job', 123) }],
+      ['The "tab" must be a String', proc { baza.fee(123, 1.0, 'sum', 42) }],
+      ['The "pname" must be a String', proc { baza.enter(123, 'badge', 'why', 42) { 'x' } }],
+      ['The "badge" must be a String', proc { baza.enter('job', 123, 'why', 42) { 'x' } }],
+      ['The "why" must be a String', proc { baza.enter('job', 'badge', 123, 42) { 'x' } }]
+    ].each do |message, call|
+      assert_equal(message, assert_raises(RuntimeError, &call).message)
+    end
+  end
+
   private
 
   def with_gzip(coding)

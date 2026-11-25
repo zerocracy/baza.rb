@@ -112,10 +112,7 @@ class BazaRb
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the push operation fails
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
-    raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
-    raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
+    checkname(pname, 'The "name" of the job')
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
@@ -239,12 +236,8 @@ class BazaRb
   # @raise [RuntimeError] If the name is already locked
   # @raise [ServerFailure] If the lock operation fails
   def lock(pname, owner)
-    raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
-    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    checkname(pname, 'The "pname" of the product')
+    checkstr(owner, 'The "owner" of the lock')
     elapsed(@loog, level: Logger::INFO) do
       throw(:"Product name #{pname.inspect} locked at #{@host}") if post(
         home.append('lock').append(pname),
@@ -260,12 +253,8 @@ class BazaRb
   # @param [String] owner The owner of the lock (any string)
   # @raise [ServerFailure] If the unlock operation fails
   def unlock(pname, owner)
-    raise(RuntimeError, 'The "pname" of the job is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the job may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
-    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    checkname(pname, 'The "pname" of the job')
+    checkstr(owner, 'The "owner" of the lock')
     elapsed(@loog, level: Logger::INFO) do
       post(home.append('unlock').append(pname), { 'owner' => owner })
       throw(:"Job name #{pname.inspect} unlocked at #{@host}")
@@ -279,10 +268,7 @@ class BazaRb
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   # @raise [RuntimeError] If the response is not a positive decimal ID
   def recent(name)
-    raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
-    raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
-    raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
+    checkname(name, 'The "name" of the job')
     job = nil
     elapsed(@loog, level: Logger::INFO) do
       body = get(home.append('recent').append("#{name}.txt")).body.to_s.b
@@ -300,10 +286,7 @@ class BazaRb
   # @param [String] pname The name of the product on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(pname)
-    raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
+    checkname(pname, 'The "pname" of the product')
     exists = false
     elapsed(@loog, level: Logger::INFO) do
       exists = get(home.append('exists').append(pname)).body == 'yes'
@@ -324,12 +307,8 @@ class BazaRb
   # @return [Integer] The ID of the created durable
   # @raise [ServerFailure] If the upload fails
   def durable_place(pname, file)
-    raise(RuntimeError, 'The "pname" of the durable is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" of the durable may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
-    raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
+    checkname(pname, 'The "pname" of the durable')
+    checkfile(file)
     if File.size(file) > 1024
       raise(
         RuntimeError,
@@ -429,12 +408,8 @@ class BazaRb
   # @raise [RuntimeError] If the server returns an invalid durable ID response
   # @raise [ServerFailure] If the server returns an unexpected response status
   def durable_find(pname, file)
-    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
-    raise(RuntimeError, "The name #{pname.inspect} is not valid") unless pname.match?(/\A[a-z0-9-]+\z/)
-    raise(RuntimeError, "The name #{pname.inspect} is too long") if pname.length > 32
-    raise(RuntimeError, 'The "file" is nil') if file.nil?
-    raise(RuntimeError, 'The "file" may not be empty') if file.empty?
+    checkname(pname, 'The "pname"')
+    checkstr(file, 'The "file"')
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('durable-find').add(file:, pname:), [200, 404])
@@ -501,8 +476,7 @@ class BazaRb
   # @return [Integer] Receipt ID for the fee payment
   # @raise [ServerFailure] If the payment fails
   def fee(tab, amount, summary, job)
-    raise(RuntimeError, 'The "tab" is nil') if tab.nil?
-    raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
+    checkstr(tab, 'The "tab"')
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
       raise(RuntimeError, 'The "amount" must be Float or BigDecimal')
@@ -544,12 +518,10 @@ class BazaRb
   # @return [String] The cached result or newly computed result from the block
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
-    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
-    raise(RuntimeError, 'The "badge" is nil') if badge.nil?
-    raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?
-    raise(RuntimeError, 'The "why" is nil') if why.nil?
-    raise(RuntimeError, 'The "why" may not be empty') if why.empty?
+    checkname(pname, 'The "pname"')
+    checkstr(badge, 'The "badge"')
+    raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
+    checkstr(why, 'The "why"')
     raise(RuntimeError, 'The "job" must be an Integer') unless job.nil? || job.is_a?(Integer)
     raise(RuntimeError, 'The "job" must be positive') unless job.nil? || job.positive?
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
@@ -963,5 +935,34 @@ class BazaRb
     value = value.to_s('F')
     value += '0' * (6 - value.split('.').last.length) if amount.is_a?(Float)
     value
+  end
+
+  # Validate a required non-empty string argument.
+  # @param [Object] val The value to validate
+  # @param [String] label The human-readable argument label
+  # @raise [RuntimeError] If nil, not a String, or empty
+  def checkstr(val, label)
+    raise(RuntimeError, "#{label} is nil") if val.nil?
+    raise(RuntimeError, "#{label} must be a String") unless val.is_a?(String)
+    raise(RuntimeError, "#{label} may not be empty") if val.empty?
+  end
+
+  # Validate a product or job name argument.
+  # @param [Object] name The name to validate
+  # @param [String] label The human-readable argument label
+  # @raise [RuntimeError] If invalid
+  def checkname(name, label)
+    checkstr(name, label)
+    raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
+  end
+
+  # Validate a durable file path argument.
+  # @param [Object] file The path to validate
+  # @raise [RuntimeError] If nil, not a String, or absent on disk
+  def checkfile(file)
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    raise(RuntimeError, 'The "file" of the durable must be a String') unless file.is_a?(String)
+    raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
   end
 end

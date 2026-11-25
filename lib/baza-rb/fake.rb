@@ -133,6 +133,7 @@ class BazaRb::Fake
   def durable_find(pname, file)
     checkname(pname, 'The "pname"')
     raise(RuntimeError, 'The "file" is nil') if file.nil?
+    raise(RuntimeError, 'The "file" must be a String') unless file.is_a?(String)
     raise(RuntimeError, 'The "file" may not be empty') if file.empty?
     42
   end
@@ -165,6 +166,7 @@ class BazaRb::Fake
   def durable_load(id, file)
     checkid(id)
     raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    raise(RuntimeError, 'The "file" of the durable must be a String') unless file.is_a?(String)
     File.write(file, '')
   end
 
@@ -203,6 +205,7 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake receipt ID
   def transfer(recipient, amount, summary, job: nil, badge: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
+    raise(RuntimeError, 'The "recipient" must be a String') unless recipient.is_a?(String)
     raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
@@ -225,6 +228,7 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake receipt ID
   def fee(tab, amount, summary, job)
     raise(RuntimeError, 'The "tab" is nil') if tab.nil?
+    raise(RuntimeError, 'The "tab" must be a String') unless tab.is_a?(String)
     raise(RuntimeError, 'The "tab" may not be empty') if tab.empty?
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     unless amount.is_a?(Float) || amount.is_a?(BigDecimal)
@@ -249,8 +253,13 @@ class BazaRb::Fake
   # @return [String] Always executes and returns the block's result
   def enter(name, badge, why, job)
     checkname(name, 'The "pname"')
+    raise(RuntimeError, 'The "badge" is nil') if badge.nil?
+    raise(RuntimeError, 'The "badge" must be a String') unless badge.is_a?(String)
+    raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?
     raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
-    raise(RuntimeError, 'The reason cannot be empty') if why.empty?
+    raise(RuntimeError, 'The "why" is nil') if why.nil?
+    raise(RuntimeError, 'The "why" must be a String') unless why.is_a?(String)
+    raise(RuntimeError, 'The "why" may not be empty') if why.empty?
     checkid(job) unless job.nil?
     yield
   end
@@ -266,6 +275,7 @@ class BazaRb::Fake
 
   def checkname(name, label)
     raise(RuntimeError, "#{label} is nil") if name.nil?
+    raise(RuntimeError, "#{label} must be a String") unless name.is_a?(String)
     raise(RuntimeError, "#{label} may not be empty") if name.empty?
     raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
     raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
@@ -278,11 +288,14 @@ class BazaRb::Fake
 
   def checkowner(owner)
     raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
+    raise(RuntimeError, 'The "owner" of the lock must be a String') unless owner.is_a?(String)
     raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     raise(RuntimeError, "The owner #{owner.inspect} is not valid") unless owner.match?(/\A.+\z/)
   end
 
   def checkfile(file)
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    raise(RuntimeError, 'The "file" of the durable must be a String') unless file.is_a?(String)
     raise(RuntimeError, 'The file must exist') unless File.exist?(file)
   end
 end

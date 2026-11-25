@@ -418,4 +418,40 @@ class TestFake < Minitest::Test
   def test_csrf
     assert_equal('fake-csrf-token', BazaRb::Fake.new.csrf)
   end
+
+  def test_non_string_arguments_are_rejected
+    baza = BazaRb::Fake.new
+    [
+      ['The "name" of the job must be a String', proc { baza.push(123, 'test-data', []) }],
+      ['The "pname" of the product must be a String', proc { baza.lock(:foo, 'test-owner') }],
+      ['The "owner" of the lock must be a String', proc { baza.lock('test-job', 123) }],
+      ['The "pname" of the job must be a String', proc { baza.unlock(123, 'test-owner') }],
+      ['The "name" of the job must be a String', proc { baza.recent(123) }],
+      ['The "pname" of the product must be a String', proc { baza.name_exists?(123) }],
+      ['The "pname" must be a String', proc { baza.durable_find(123, 'remote.bin') }],
+      ['The "file" must be a String', proc { baza.durable_find('test-job', 123) }],
+      ['The "pname" of the durable must be a String', proc { baza.durable_place(123, 'unused.bin') }],
+      ['The "file" of the durable must be a String', proc { baza.durable_place('test-job', 123) }],
+      ['The "file" of the durable must be a String', proc { baza.durable_load(42, 123) }],
+      ['The "recipient" must be a String', proc { baza.transfer(123, 1.0, 'sum') }],
+      ['The "tab" must be a String', proc { baza.fee(123, 1.0, 'sum', 42) }],
+      ['The "pname" must be a String', proc { baza.enter(123, 'badge', 'why', 42) { 'x' } }],
+      ['The "badge" must be a String', proc { baza.enter('test-job', 123, 'why', 42) { 'x' } }],
+      ['The "why" must be a String', proc { baza.enter('test-job', 'badge', 123, 42) { 'x' } }]
+    ].each do |message, call|
+      assert_equal(message, assert_raises(RuntimeError, &call).message)
+    end
+  end
+
+  def test_enter_rejects_nil_and_empty_badge_and_why
+    baza = BazaRb::Fake.new
+    [
+      ['The "badge" is nil', proc { baza.enter('test-job', nil, 'why', 42) { 'x' } }],
+      ['The "badge" may not be empty', proc { baza.enter('test-job', '', 'why', 42) { 'x' } }],
+      ['The "why" is nil', proc { baza.enter('test-job', 'badge', nil, 42) { 'x' } }],
+      ['The "why" may not be empty', proc { baza.enter('test-job', 'badge', '', 42) { 'x' } }]
+    ].each do |message, call|
+      assert_equal(message, assert_raises(RuntimeError, &call).message)
+    end
+  end
 end
