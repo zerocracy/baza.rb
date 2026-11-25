@@ -13,6 +13,13 @@
         "diff-lcs",
         "nio4r"
       ]
+    },
+    {
+      "matchPackageNames": [
+        "simplecov",
+        "simplecov-cobertura"
+      ],
+      "groupName": "SimpleCov coverage"
     }
   ],
   "automerge": true,
