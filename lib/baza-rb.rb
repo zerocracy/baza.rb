@@ -926,7 +926,7 @@ class BazaRb
           rewinds += 1
           raise if rewinds > @retries
           target = match[1].to_i
-          raise if chunk_size * target >= total
+          raise unless resumable?(target, chunk, total, chunk_size)
           @loog.info(
             "Server lost upload state at chunk ##{chunk}, " \
             "restarting from chunk ##{target} (rewind no.#{rewinds})"
@@ -951,6 +951,13 @@ class BazaRb
       end
       throw(:"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}")
     end
+  end
+
+  def resumable?(target, chunk, total, chunk_size)
+    return true if chunk_size * target < total
+    return false if total <= chunk_size
+    terminal = total.ceildiv(chunk_size)
+    target == terminal && chunk >= terminal - 1
   end
 
   # Format a positive payment amount without rounding it up.
