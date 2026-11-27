@@ -338,14 +338,10 @@ class BazaRb
     end
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      id = post(
-        home.append('durable-place'),
-        {
-          'pname' => pname,
-          'file' => File.basename(file),
-          'zip' => File.open(file, 'rb')
-        }
-      ).headers['X-Zerocracy-DurableId'].to_i
+      File.open(file, 'rb') do |f|
+        id = post(home.append('durable-place'), { 'pname' => pname, 'file' => File.basename(file), 'zip' => f })
+          .headers['X-Zerocracy-DurableId'].to_i
+      end
       throw(:"Durable ##{id} (#{file}, #{File.size(file)} bytes) placed for job \"#{pname}\" at #{@host}")
     end
     id
