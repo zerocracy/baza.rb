@@ -790,6 +790,7 @@ class BazaRb
     FileUtils.rm_f(file)
     FileUtils.touch(file)
     chunk = 0
+    coding = nil
     blanks = [204, 302]
     modes = { 200 => 'wb', 206 => 'ab' }
     elapsed(@loog, level: Logger::INFO) do
@@ -833,14 +834,7 @@ class BazaRb
           sleep(2)
           next
         end
-        if gzipped
-          begin
-            slice = unzip(slice)
-            msg << "unzipped to #{slice.bytesize} bytes"
-          rescue BazaRb::BadCompression => e
-            raise(BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})")
-          end
-        end
+        coding = encoding(gzipped, ret.code, coding)
         File.open(file, modes.fetch(ret.code)) do |f|
           msg << "added to existing #{File.size(file)} bytes"
           f.write(slice)
@@ -857,8 +851,25 @@ class BazaRb
         chunk += 1
         sleep(1) if rheaders['Content-Length'].to_i.zero?
       end
+      if coding == 'gzip'
+        begin
+          data = File.open(file, 'rb') { |source| inflate(source) }
+          File.binwrite(file, data)
+          @loog.debug("Unzipped download to #{data.bytesize} bytes")
+        rescue BazaRb::BadCompression => e
+          raise(BazaRb::BadCompression, "GET #{uri.to_uri.path} (#{e.message})")
+        end
+      end
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
+  end
+
+  def encoding(gzipped, status, previous)
+    current = gzipped ? 'gzip' : 'identity'
+    if status == 206 && previous && previous != current
+      raise(BazaRb::BadCompression, "Content-Encoding changed from #{previous} to #{current}")
+    end
+    current
   end
 
   def crange(headers)
