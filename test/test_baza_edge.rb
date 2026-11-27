@@ -1458,6 +1458,53 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(payload, 'owner=owner')
   end
 
+  def test_rehost_handles_duplicate_host_header
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    uri = baza.__send__(
+      :rehost,
+      Struct.new(:headers).new({ 'X-Zerocracy-Host' => ['s1.example.org', 's2.example.org'] }),
+      baza.__send__(:home)
+    )
+    assert_equal('s2.example.org', URI(uri.to_s).host)
+    assert_equal('s2.example.org', baza.instance_variable_get(:@host))
+    assert_equal(
+      's2.example.org',
+      URI(baza.__send__(:rehost, Struct.new(:headers).new({ 'X-Zerocracy-Host' => [] }), uri).to_s).host
+    )
+  end
+
+  def test_download_handles_duplicate_headers
+    WebMock.disable_net_connect!
+    buf = StringIO.new
+    gz = Zlib::GzipWriter.new(buf)
+    gz.write('hello')
+    gz.close
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'dup.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: buf.string,
+          headers: {
+            'Content-Encoding' => %w[gzip gzip],
+            'Content-Range' => ['bytes 0-4/5', 'bytes 0-4/5'],
+            'Content-Length' => [buf.string.bytesize.to_s, buf.string.bytesize.to_s]
+          }
+        )
+      fake_baza.__send__(:download, fake_baza.__send__(:home).append('file'), file)
+      assert_equal('hello', File.read(file))
+    end
+  end
+
+  def test_crange_handles_array_headers
+    assert_equal(%w[0-4 5], fake_baza.__send__(:crange, { 'Content-Range' => ['bytes 0-4/5', 'bytes 0-4/5'] }))
+    assert_equal(
+      'Content-Range header is missing',
+      assert_raises(RuntimeError) { fake_baza.__send__(:crange, { 'Content-Range' => [] }) }.message
+    )
+  end
+
   private
 
   def with_gzip(coding)
