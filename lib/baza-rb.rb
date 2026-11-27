@@ -14,6 +14,7 @@ require 'retries'
 require 'stringio'
 require 'tago'
 require 'tempfile'
+require 'time'
 require 'typhoeus'
 require 'zlib'
 require_relative 'baza-rb/compress'
@@ -671,7 +672,7 @@ class BazaRb
       ret = yield
       if (ret.code == 429 || ret.code >= 499) && attempt < @retries
         attempt += 1
-        seconds = backoff(attempt)
+        seconds = delay(ret, attempt)
         if ret.code == 429
           @loog.info("Server seems to be busy, will sleep for #{seconds} (attempt no.#{attempt})...")
         else
@@ -682,6 +683,18 @@ class BazaRb
       end
       return ret
     end
+  end
+
+  def delay(response, attempt)
+    fallback = backoff(attempt)
+    return fallback unless [429, 503].include?(response.code)
+    header = response.headers&.[]('Retry-After')
+    return fallback unless header.is_a?(String)
+    value = header.strip
+    return [Integer(value, 10), fallback].max if value.match?(/\A[0-9]+\z/)
+    [(Time.httpdate(value) - Time.now).ceil, fallback].max
+  rescue ArgumentError
+    fallback
   end
 
   # Check the HTTP response and return it.
