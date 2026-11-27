@@ -323,6 +323,26 @@ class TestBazaRbEdge < Minitest::Test
     assert_not_requested(:put, 'https://example.org/durables/42')
   end
 
+  def test_push_rejects_integer_meta
+    WebMock.reset!
+    WebMock.disable_net_connect!
+    assert_equal(
+      'The "meta" item at index 0 must be a String',
+      assert_raises(ArgumentError) { fake_baza.push('simple', 'hello, world!', [123]) }.message
+    )
+    assert_not_requested(:any, %r{https://example\.org})
+  end
+
+  def test_push_rejects_nil_meta_after_string
+    WebMock.reset!
+    WebMock.disable_net_connect!
+    assert_equal(
+      'The "meta" item at index 1 must be a String',
+      assert_raises(ArgumentError) { fake_baza.push('simple', 'hello, world!', ['valid', nil]) }.message
+    )
+    assert_not_requested(:any, %r{https://example\.org})
+  end
+
   def test_push_compressed_content
     WebMock.enable_net_connect!
     fb = Factbase.new
