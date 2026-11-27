@@ -282,7 +282,7 @@ GEM
       hashdiff (>= 0.4.0, < 2.0.0)
     webrick (1.9.2)
     yaml (0.4.0)
-    yard (0.9.45)
+    yard (0.9.46)
     zeitwerk (2.8.3)
 
 PLATFORMS
@@ -323,7 +323,7 @@ DEPENDENCIES
   wait_for (~> 0.1)
   webmock (~> 3.24)
   webrick (~> 1.9)
-  yard (= 0.9.45)
+  yard (= 0.9.46)
 
 BUNDLED WITH
    2.6.8
