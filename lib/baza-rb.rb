@@ -803,11 +803,7 @@ class BazaRb
                 request = Typhoeus::Request.new(
                   uri.to_s,
                   method: :get,
-                  headers: headers.merge(
-                    'Accept' => '*/*',
-                    'Accept-Encoding' => 'gzip',
-                    'Range' => "bytes=#{File.size(file)}-"
-                  ),
+                  headers: ranged(File.size(file)),
                   connecttimeout: @timeout,
                   timeout: @timeout
                 )
@@ -859,6 +855,14 @@ class BazaRb
       end
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
+  end
+
+  def ranged(offset)
+    headers.merge(
+      'Accept' => '*/*',
+      'Accept-Encoding' => @compress ? 'gzip' : 'identity',
+      'Range' => "bytes=#{offset}-"
+    )
   end
 
   def crange(headers)
