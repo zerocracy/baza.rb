@@ -544,10 +544,10 @@ class BazaRb
   # @return [String] The cached result or newly computed result from the block
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
-    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
-    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
+    checkname(pname, 'The "pname"')
     raise(RuntimeError, 'The "badge" is nil') if badge.nil?
     raise(RuntimeError, 'The "badge" may not be empty') if badge.empty?
+    raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_.-]+\z/)
     raise(RuntimeError, 'The "why" is nil') if why.nil?
     raise(RuntimeError, 'The "why" may not be empty') if why.empty?
     raise(RuntimeError, 'The "job" must be an Integer') unless job.nil? || job.is_a?(Integer)
@@ -580,6 +580,18 @@ class BazaRb
   end
 
   private
+
+  # Validate a product or job name.
+  #
+  # @param [String] name The name to validate
+  # @param [String] label Human-readable label for error messages
+  # @raise [RuntimeError] If name is nil, empty, invalid, or too long
+  def checkname(name, label)
+    raise(RuntimeError, "#{label} is nil") if name.nil?
+    raise(RuntimeError, "#{label} may not be empty") if name.empty?
+    raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
+  end
 
   # Calculate exponential backoff in seconds for a given attempt number.
   #
