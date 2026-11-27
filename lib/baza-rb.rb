@@ -790,6 +790,7 @@ class BazaRb
     FileUtils.rm_f(file)
     FileUtils.touch(file)
     chunk = 0
+    empty = 0
     blanks = [204, 302]
     modes = { 200 => 'wb', 206 => 'ab' }
     elapsed(@loog, level: Logger::INFO) do
@@ -830,9 +831,12 @@ class BazaRb
         ]
         uri = rehost(ret, uri)
         if blanks.include?(ret.code)
-          sleep(2)
+          empty += 1
+          raise(BazaRb::ServerFailure, "Too many blank (#{ret.code}) responses from #{uri}") if empty > @retries
+          sleep(2) unless @pause.zero?
           next
         end
+        empty = 0
         if gzipped
           begin
             slice = unzip(slice)
@@ -846,19 +850,22 @@ class BazaRb
           f.write(slice)
         end
         @loog.debug(msg.compact.join(', '))
-        break if ret.code == 200
-        range, total = crange(rheaders)
-        raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
-        _b, e = range.split('-', 2)
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
-        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/\A[0-9]+\z/)
-        break if e.to_i == total.to_i - 1
-        break if total == '0'
+        break if ret.code == 200 || rangedone?(rheaders)
         chunk += 1
         sleep(1) if rheaders['Content-Length'].to_i.zero?
       end
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
+  end
+
+  def rangedone?(headers)
+    range, total = crange(headers)
+    raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
+    _b, e = range.split('-', 2)
+    raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil? || !e.match?(/\A[0-9]+\z/)
+    return true if total == '0'
+    raise(RuntimeError, "Range is not valid (#{range.inspect})") if total != '*' && e.to_i >= total.to_i
+    total != '*' && e.to_i == total.to_i - 1
   end
 
   def crange(headers)
