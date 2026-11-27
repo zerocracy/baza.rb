@@ -7,7 +7,7 @@ $stdout.sync = true
 
 require 'simplecov'
 require 'simplecov-cobertura'
-unless SimpleCov.running || ARGV.include?('--no-cov')
+unless Coverage.running? || ARGV.include?('--no-cov')
   SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter.new(
     [
       SimpleCov::Formatter::HTMLFormatter,
@@ -15,13 +15,13 @@ unless SimpleCov.running || ARGV.include?('--no-cov')
     ]
   )
   SimpleCov.minimum_coverage(90)
-  SimpleCov.minimum_coverage_by_file(95)
+  SimpleCov.coverage(:line) { minimum 95, per: :file }
   SimpleCov.start do
-    add_filter('test/')
-    add_filter('lib/baza-rb/version.rb')
-    add_filter('vendor/')
-    add_filter('target/')
-    track_files('lib/**/*.rb')
+    skip('test/')
+    skip('lib/baza-rb/version.rb')
+    skip('vendor/')
+    skip('target/')
+    cover('lib/**/*.rb')
   end
 end
 
