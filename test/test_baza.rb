@@ -363,6 +363,34 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_push_raises_when_data_is_integer
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { client(80).push('pact72', 42, []) }.message
+    )
+  end
+
+  def test_push_raises_when_data_is_array
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { client(80).push('pact72', [1, 2], []) }.message
+    )
+  end
+
+  def test_push_raises_when_data_is_symbol
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { client(80).push('pact72', :data, []) }.message
+    )
+  end
+
+  def test_push_raises_when_data_is_hash
+    assert_equal(
+      'The "data" must be a String',
+      assert_raises(ArgumentError) { client(80).push('pact72', { key: 'val' }, []) }.message
+    )
+  end
+
   def test_finds_recent_job
     interaction
       .given('user is authenticated')
